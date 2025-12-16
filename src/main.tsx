@@ -6,6 +6,8 @@ import App from "./App";
 import Home from "./pages/Home";
 import Users from "./pages/Users";
 import Kits from "./pages/Items/Kits";
+import Estoque from "./pages/Items/Estoque";
+import Fornecedores from "./pages/Items/Fornecedores";
 import Software from "./pages/Softwares";
 import About from "./pages/About";
 
@@ -19,6 +21,8 @@ const router = createBrowserRouter([
       { path: "items", 
        children: [
         { path: "kits", element: <Kits /> },
+        { path: "estoque", element: <Estoque /> },
+        { path: "fornecedores", element: <Fornecedores /> }
        ]
        },
       { path: "softwares", element: <Software /> },

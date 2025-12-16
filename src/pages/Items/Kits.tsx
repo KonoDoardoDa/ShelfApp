@@ -1,3 +1,3 @@
-export default function Users() {
+export default function Kits() {
   return <h2>Kits</h2>;
 }
