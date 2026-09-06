@@ -1,0 +1,28 @@
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #111827;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+th, td {
+  padding: 14px 16px;
+  text-align: left;
+}
+
+th {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  background: #0f172a;
+}
+
+tr {
+  border-bottom: 1px solid #1f2937;
+}
+
+tr:hover {
+  background: #1e293b;
+}

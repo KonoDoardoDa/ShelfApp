@@ -1,0 +1,190 @@
+/* ======================================================
+   SHELFAPP ERP - MINIMALIST CENTERED LOGIN
+   ====================================================== */
+
+.login-minimal-container {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-app);
+  position: relative;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+/* Botão de Tema no Topo */
+.login-theme-wrapper {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+}
+
+.login-theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.login-theme-btn:hover {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* Card Central Minimalista */
+.login-minimal-card {
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 38px 32px;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  transition: all 0.2s ease;
+}
+
+/* Header do Card */
+.card-header-minimal {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.card-logo-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.card-brand-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.card-brand-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Formulário */
+.login-form-minimal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-form-minimal .form-group {
+  margin-bottom: 0;
+}
+
+.input-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.input-icon-wrapper input {
+  padding-left: 40px !important;
+  padding-right: 42px;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.password-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.login-btn-minimal {
+  width: 100%;
+  padding: 11px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 9px;
+  margin-top: 6px;
+  gap: 8px;
+}
+
+/* Rodapé do Card */
+.card-footer-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.card-footer-minimal code {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background-color: var(--bg-app);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.fill-link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.fill-link-btn:hover {
+  background-color: var(--accent-light);
+}
+
+@media (max-width: 480px) {
+  .login-minimal-card {
+    padding: 28px 20px;
+  }
+}

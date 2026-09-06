@@ -1,68 +1,126 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* ======================================================
+   SHELFAPP ERP - ENTERPRISE DESIGN SYSTEM & CSS TOKENS
+   ====================================================== */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+:root,
+[data-theme="dark"],
+html.dark,
+body.dark {
+  color-scheme: dark;
+  --bg-app: #090d16;
+  --bg-surface: #0f172a;
+  --bg-surface-elevated: #1e293b;
+  --bg-surface-hover: #1e293b;
+  --bg-header: rgba(15, 23, 42, 0.85);
+  --bg-sidebar: #0b1120;
+  --border-color: #1e293b;
+  --border-strong: #334155;
+  --border-subtle: #172033;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-light: rgba(59, 130, 246, 0.15);
+  --accent-glow: 0 0 20px rgba(59, 130, 246, 0.35);
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --danger-light: rgba(239, 68, 68, 0.15);
+  --success: #10b981;
+  --success-light: rgba(16, 185, 129, 0.15);
+  --warning: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.15);
+  --purple: #a855f7;
+  --purple-light: rgba(168, 85, 247, 0.15);
+  --input-bg: #090d16;
+  --input-border: #334155;
+  --card-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.35), 0 2px 6px -1px rgba(0, 0, 0, 0.2);
+  --modal-shadow: 0 24px 38px 3px rgba(0, 0, 0, 0.6), 0 9px 46px 8px rgba(0, 0, 0, 0.4);
+  --table-header-bg: #0b1120;
+  --table-row-hover: #162035;
+  --scrollbar-thumb: #334155;
+  --badge-bg: #1e293b;
+  --topbar-blur: blur(12px);
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+[data-theme="light"],
+html.light,
+body.light {
+  color-scheme: light;
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f1f5f9;
+  --bg-surface-hover: #f1f5f9;
+  --bg-header: rgba(255, 255, 255, 0.88);
+  --bg-sidebar: #ffffff;
+  --border-color: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-subtle: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-light: rgba(37, 99, 235, 0.1);
+  --accent-glow: 0 0 20px rgba(37, 99, 235, 0.2);
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-light: rgba(220, 38, 38, 0.1);
+  --success: #059669;
+  --success-light: rgba(5, 150, 105, 0.1);
+  --warning: #d97706;
+  --warning-light: rgba(217, 119, 6, 0.1);
+  --purple: #9333ea;
+  --purple-light: rgba(147, 51, 234, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+  --modal-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --table-header-bg: #f8fafc;
+  --table-row-hover: #f8fafc;
+  --scrollbar-thumb: #cbd5e1;
+  --badge-bg: #f1f5f9;
+  --topbar-blur: blur(12px);
 }
-a:hover {
-  color: #535bf2;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  line-height: 1.5;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

@@ -1,8 +1,35 @@
+@import "./index.css";
+@import "./components/UI.css";
+
 .app-layout {
   display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
 }
 
-.content {
+.main-area {
   flex: 1;
-  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.page-content {
+  flex: 1;
+  padding: 28px 36px;
+  overflow-y: auto;
+  background-color: var(--bg-app);
+  scroll-behavior: smooth;
+}
+
+@media (max-width: 768px) {
+  .page-content {
+    padding: 16px;
+  }
 }
