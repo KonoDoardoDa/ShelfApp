@@ -1,73 +1,182 @@
-# React + TypeScript + Vite
+# 💻 ShelfApp — Frontend ERP Industrial & Manufatura de Kits
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface web corporativa desenvolvida em **React 19**, **TypeScript** e **Vite**, construída para oferecer uma experiência fluida, ágil e visualmente moderna no controle de almoxarifado, gestão de compras, linha de montagem e manufatura de kits, planejamento de produção e auditoria operacional.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🛠️ Tecnologias Utilizadas
 
-## React Compiler
+- **Core**: [React 19](https://react.dev/) com Hooks modernos (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`)
+- **Linguagem**: [TypeScript 5](https://www.typescriptlang.org/) (tipagem estrita com zero erros de build)
+- **Bundler & Dev Server**: [Vite 7](https://vitejs.dev/) com Hot Module Replacement (HMR) ultrarrápido
+- **Roteamento**: [React Router DOM 7](https://reactrouter.com/) com rotas protegidas por autenticação e perfis (RBAC)
+- **Cliente HTTP**: [Axios](https://axios-http.com/) com interceptors para injeção automática de Bearer Token JWT e tratamento global de erros
+- **Ícones**: [Lucide React](https://lucide.dev/)
+- **Design System**: CSS nativo com tokens de variáveis customizadas (`UI.css`), suporte nativo a **Modo Escuro / Modo Claro** com transições suaves e design responsivo
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🌟 Módulos e Funcionalidades
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 1. 📊 Dashboard Principal (`/`)
+- **Cards de Indicadores (KPIs Executivos)**:
+  - **Total de Itens**: Acesso rápido ao catálogo de peças.
+  - **Baixo Estoque**: Filtro de 1 a 10 unidades com redirecionamento direto para reposição.
+  - **Estoque Zerado**: Alerta visual crítico de itens esgotados (0 un).
+  - **Fornecedores Homologados**: Quantitativo de parceiros ativos na cadeia de suprimentos.
+- **Monitor de Reposição & Estoque Crítico**:
+  - Tabela dinâmica que lista exclusivamente os itens em situação de ruptura ou atenção.
+  - **Paginação Inicial Otimizada**: Configurada para exibir inicialmente **5 itens por página** (com opções ajustáveis de 5, 10, 20 ou 50 itens).
+  - Filtros rápidos: `[ Todos ]`, `[ Zerados ]` e `[ Baixo Estoque ]`.
+- **Acessos Rápidos**: Navegação direta para Almoxarifado, Kits, Fornecedores e Softwares/CLPs.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 2. 📦 Almoxarifado & Estoque Unificado (`/items/estoque`)
+- **Visão Integrada de Estoque**:
+  - Consolida tanto **Peças e Insumos Físicos** quanto **Kits Pré-Montados** em uma única tabela.
+  - Seletor de categorias por pills:
+    - `[ Todos os Estoques ]`
+    - `[ Peças & Componentes ]`
+    - `[ Kits Pré-Montados ]` (com código `#K{id}` e tag de identificação estilizada `[KIT]`).
+- **Operação Rápida**:
+  - Modal de movimentação de estoque: entrada ou saída com preenchimento obrigatório de justificativa/motivo para auditoria.
+  - Indicadores de criticidade com badges semânticos (Verde para regular, Âmbar para baixo, Vermelho para zerado).
+  - Paginação configurável (10, 20, 50 itens por página).
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
+
+### 3. 🔨 Gestão de Kits & Linha de Manufatura (`/items/kits`)
+- **Monitoramento em Tempo Real**:
+  - **Estoque Físico (Prontos)**: Quantidade de conjuntos montados e disponíveis para expedição.
+  - **Capacidade de Montagem**: Cálculo dinâmico da BOM que indica a quantidade máxima de kits que podem ser montados agora com as peças disponíveis no depósito.
+- **Ações Rápidas por Kit**:
+  - 🔨 **Montar Kit**: Modal seguro com breakdown das peças exigidas, validação de saldo e baixa automática atômica de insumos.
+  - 📦 **Desmontar Kit**: Estorno imediato de kits prontos com devolução de todos os componentes ao estoque.
+  - ⚙️ **Composição da BOM**: Gestão de peças vinculadas, quantidades necessárias e marcação de peças exclusivas do painel (`isPainel`).
+  - 📜 **Histórico de Auditoria**: Modal com rastreabilidade detalhada de todas as montagens, saídas, saldos antes/depois, operador e justificativa.
+  - 📄 **Exportação CSV do Kit**: Gera a ficha técnica completa do kit em arquivo `.csv` estruturado com segregação explícita entre **Componentes Exclusivos do Painel** e **Componentes Gerais**.
+
+---
+
+### 4. 🧮 Simulador de Produção Multi-Kits & Planejamento de Demanda
+Acessado através do botão **"Simular Montagem"** na tela de Kits:
+- **Fila de Montagem Multi-Modelos**: Adicione múltiplos kits simultaneamente com quantidades personalizadas (ex: Kit Solar: 10 un, Kit Inversor: 5 un, Kit Bateria: 2 un).
+- **Modos de Foco Operacional**:
+  - `[ Todos os Componentes ]`: Visão global da fábrica.
+  - `[ ⚡ Exclusivo: Apenas Painéis ]`: Foco dedicado na oficina de montagem de painéis elétricos, recalculando a viabilidade e identificando faltas exclusivamente para itens de painel.
+  - `[ 📦 Peças Gerais / Não-Painel ]`: Foco em ferragens, cabos e estruturas.
+- **Balanço Estimado & Detecção de Gargalos**:
+  - Tabela analítica com código `#ID`, Insumo, Kits de Origem com proporção de uso, Necessidade Total, Saldo Atual, Balanço Pós-Montagem (`+` verde / `-` vermelho) e status.
+- **Exportação CSV Analítica**:
+  - Exporta planilha estruturada com codificação **UTF-8 com BOM (`\uFEFF`)** e delimitador ponto e vírgula (`;`), abrindo com acentuação impecável no Microsoft Excel e Google Sheets.
+
+---
+
+### 5. 🚚 Fornecedores, Softwares & Segurança
+- **Fornecedores (`/items/fornecedores`)**: Cadastro e manutenção de parceiros da cadeia de suprimentos.
+- **Softwares & CLPs (`/softwares`)**: Gestão de softwares de automação, versões homologadas e controle de licenças.
+- **Controle de Usuários & RBAC (`/users`)**:
+  - Restrito a usuários com perfil de **Administrador**.
+  - Operadores têm acesso operacional sem visualização das telas de gestão de usuários.
+- **Seletor de Tema Segmentado**: Alternância instantânea entre Modo Escuro e Modo Claro na barra superior com persistência local.
+
+---
+
+## 📁 Estrutura de Pastas
+
+```
+ShelfApp/
+├── public/                  # Favicon e ativos públicos
+├── src/
+│   ├── api/                 # Cliente HTTP Axios e interceptors de token JWT
+│   │   └── http.ts
+│   ├── components/          # Componentes reutilizáveis do Design System
+│   │   ├── ConfirmModal.tsx
+│   │   ├── Modal.tsx
+│   │   ├── Pagination.tsx
+│   │   ├── SimuladorMontagemModal.tsx  # Modal analítico multi-kits
+│   │   ├── ToastContainer.tsx
+│   │   └── UI.css           # Design system tokens e classes globais
+│   ├── hooks/               # Custom hooks (autenticação, tema, notificações toast)
+│   │   ├── useAuth.tsx
+│   │   ├── useTheme.tsx
+│   │   └── useToast.tsx
+│   ├── layout/              # Estrutura principal da aplicação
+│   │   ├── AppLayout.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── Topbar.tsx       # Barra de navegação, breadcrumbs e tema
+│   │   └── Layout.css
+│   ├── pages/               # Páginas e rotas do ERP
+│   │   ├── Home.tsx         # Dashboard executivo
+│   │   ├── Login.tsx        # Tela de login
+│   │   ├── Softwares.tsx    # Licenças e softwares de CLPs
+│   │   ├── Users.tsx        # Gestão de usuários (Admin)
+│   │   ├── About.tsx        # Sobre o sistema
+│   │   └── Items/
+│   │       ├── Estoque.tsx      # Controle unificado de almoxarifado
+│   │       ├── Fornecedores.tsx # Cadeia de suprimentos
+│   │       └── Kits.tsx         # Manufatura, kits e montagem
+│   ├── services/            # Serviços de integração com a ShelfApi
+│   │   ├── authService.ts
+│   │   ├── estoqueKitService.ts
+│   │   ├── estoqueService.ts
+│   │   ├── fornecedorService.ts
+│   │   ├── itemService.ts
+│   │   ├── kitItemService.ts
+│   │   ├── kitService.ts
+│   │   └── softwareService.ts
+│   ├── types/               # Tipagens estritas TypeScript (DTOs e entidades)
+│   │   ├── auth.ts
+│   │   ├── estoqueKit.ts
+│   │   ├── fornecedor.ts
+│   │   ├── item.ts
+│   │   ├── kit.ts
+│   │   └── software.ts
+│   ├── App.tsx              # Definição de rotas e providers
+│   ├── main.tsx             # Ponto de entrada React
+│   └── index.css            # Reset e variáveis CSS base
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🚀 Como Executar o Projeto
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Pré-requisitos
+- [Node.js](https://nodejs.org/) versão 18 ou superior.
+- [npm](https://www.npmjs.com/) ou [pnpm](https://pnpm.io/).
+- Backend **ShelfApi** em execução (por padrão em `https://localhost:7024` ou `http://localhost:5029`).
+
+### 1. Instalar Dependências
+```bash
+npm install
+```
+
+### 2. Configurar URL da API (Opcional)
+Por padrão, o arquivo `src/api/http.ts` se conecta automaticamente ao backend local:
+- `https://localhost:7024/api` (ou porta configurada).
+Caso necessário, configure uma variável de ambiente criando um arquivo `.env`:
+```env
+VITE_API_URL=https://localhost:7024/api
+```
+
+### 3. Iniciar o Servidor de Desenvolvimento
+```bash
+npm run dev
+```
+O Vite iniciará a aplicação e disponibilizará o link local (geralmente em `http://localhost:5173`).
+
+### 4. Comandos de Validação e Produção
+```bash
+# Executar verificação de linting com ESLint
+npm run lint
+
+# Compilar para produção com TypeScript e empacotamento Vite
+npm run build
+
+# Pré-visualizar o build de produção localmente
+npm run preview
 ```
