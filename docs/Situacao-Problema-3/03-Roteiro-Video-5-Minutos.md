@@ -7,9 +7,7 @@
 > **Por que são 2 vídeos no relatório oficial?**
 > Assim como no relatório aprovado de referência (`Relatório-Cupcake.docx`), o template da Cruzeiro do Sul possui **dois campos distintos de vídeo**:
 > 1. **Vídeo 1 (Página 2 — Tabela `Codificação` / Situação-Problema 2):** exige **no mínimo 5 minutos** apresentando a arquitetura do código-fonte (Front-end, Back-end e Banco de Dados) e o funcionamento geral da aplicação sem erros.
-> 2. **Vídeo 2 (Página 6 — Tabela `Vídeo da Solução atualizada` / Situação-Problema 3):** exige **até 5 minutos** (pode ter entre **2 min 30 s e 4 min**) apresentando especificamente as melhorias e correções implementadas após os feedbacks dos 5 colegas.
->
-> 💡 **Dica de Ouro:** Você **não precisa desfazer nenhuma linha de código** para gravar os dois vídeos! No **Vídeo 1**, você mostra o código no VS Code e faz o fluxo básico do sistema (sem tocar nas funções de Importar XML, ordenar colunas, inativar ou exportar CSV). Depois, no **Vídeo 2**, você foca diretamente em demonstrar essas 5 melhorias na prática e os commits no GitHub!
+> 2. **Vídeo 2 (Página 6 — Tabela `Vídeo da Solução atualizada` / Situação-Problema 3):** exige **até 5 minutos** (pode ter entre **2 min 30 s e 4 min**) apresentando especificamente as correções dos bugs e melhorias apontadas nos testes dos 5 colegas.
 
 ---
 
@@ -54,28 +52,28 @@
 * **Onde colar o link:** Página 6 do Word (`Link para o vídeo` na seção `Vídeo da Solução atualizada`)
 * **Duração Alvo:** **2 min 45 seg a 4 min 00 seg** (o requisito é "até 5 minutos")
 
-### 🔹 00:00 – 00:40 | Contextualização dos 5 Testes e Ciclo Kaizen
-* **[Na Tela]:** Mostre rapidamente o histórico de commits no GitHub (`https://github.com/KonoDoardoDa/ShelfApp/commits/main`) e a tela inicial do ShelfApp.
+### 🔹 00:00 – 00:35 | Contextualização dos 5 Testes e Ciclo Kaizen
+* **[Na Tela]:** Mostre rapidamente o histórico de commits no GitHub (`https://github.com/KonoDoardoDa/ShelfApp/commits/main`) e a tela de **Kits & Montagens (`/items/kits`)**.
 * **[O que falar]:**
-  > *"Olá! Neste vídeo da Situação-Problema 3, vou apresentar as atualizações e melhorias implementadas no **ShelfApp ERP** após a sessão de testes realizada com 5 colegas avaliadores, seguindo o ciclo de melhoria contínua Kaizen."*
+  > *"Olá! Neste segundo vídeo, referente à Situação-Problema 3, vou apresentar na prática as correções dos bugs e melhorias implementadas no **ShelfApp ERP** após a bateria de testes realizada com os 5 colegas avaliadores."*
 
-### 🔹 00:40 – 01:30 | Melhoria do Teste 1 (Nota Fiscal e Importação de XML NF-e) e Teste 2 (Ordenação nas Tabelas)
-* **[Na Tela]:** Vá em **Estoque & Peças (`/items/estoque`)**.
-  1. Clique no botão **Movimentar** de uma peça para mostrar o campo **Nota Fiscal** e depois clique no botão **Importar XML (NF-e)** no topo da tela para mostrar o modal de importação em lote.
-  2. Em seguida, clique nos cabeçalhos **ID**, **Item / Peça** e **Saldo Atual** para mostrar a ordenação crescente/decrescente.
+### 🔹 00:35 – 01:35 | Correção dos Testes 1 e 2 (Duplicidade de Item no Kit e Limite Numérico na Edição)
+* **[Na Tela]:** Na tela de **Kits (`/items/kits`)**, abra a **Composição do Kit** de um kit (ex.: `A80 220V.2`):
+  1. **Teste 1:** Selecione no dropdown um item que já esteja listado abaixo (ex.: `D-ST 4` ou `LC1D32B7`) e clique em **`+ Adicionar`**. Mostre o aviso amigável amarelo (`toastWarning`) orientando a incrementar a quantidade em vez de estourar `MySqlException: Duplicate entry`.
+  2. **Teste 2:** Clique no ícone de editar um item da composição (`Editar Parâmetros`), digite `99999999999999` na `Quantidade` e clique em **`Salvar`**. Mostre a mensagem em português (`"A quantidade deve ser entre 1 e 1.000.000 unidades."`) sem dar erro 400 em inglês.
 * **[O que falar]:**
-  > *"No **Teste 1**, foi apontada a ausência de um campo próprio para Nota Fiscal e a demora para lançar notas fiscais com muitos itens manualmente. Como correção, adicionamos o campo dedicado de **Nota Fiscal** no modal de movimentação e no histórico de auditoria, e criamos o módulo de **Importação de XML de NF-e**, que lê o arquivo fiscal, pré-visualiza os produtos e dá entrada no estoque em lote dentro de uma transação única.*  
-  > *Já no **Teste 2**, foi identificada a falta de ordenação nas tabelas com muitos itens. Implementamos o componente `SortableTh` e o hook `useTableSort`, permitindo clicar em qualquer coluna — como ID, Nome, Saldo ou Capacidade — para ordenar em ordem crescente ou decrescente."*
+  > *"No **Teste 1**, quando o avaliador tentou adicionar na composição do kit uma peça que já fazia parte daquele mesmo kit, o banco disparava uma exceção técnica `MySqlException: Duplicate entry`. Para corrigir, criamos a exceção `DuplicateKitItemException` no back-end e a validação preventiva no front-end: agora, ao tentar adicionar um item repetido, o sistema bloqueia a duplicidade e exibe um aviso amigável orientando o operador a incrementar a quantidade do item existente na tabela.*  
+  > *No **Teste 2**, ao editar a quantidade de uma peça do kit com um número exageradamente grande, ocorria estouro de inteiro de 32 bits na API com a mensagem em inglês `'One or more validation errors occurred'`. Aplicamos a validação de intervalo de 1 a 1 milhão tanto no modelo `KitItem.cs` quanto no formulário, exibindo agora uma mensagem clara em português."*
 
-### 🔹 01:30 – 02:20 | Melhoria do Teste 3 (CSV com UTF-8 BOM e Agrupamento por Fornecedor) e Teste 4 (Inativação Lógica)
-* **[Na Tela]:**
-  1. Vá em **Kits (`/items/kits`)**, abra o **Simulador de Montagem**, adicione um kit e clique em **Exportar CSV**.
-  2. Feche o modal e aponte para o botão de **Inativar/Ativar** e o filtro **Ativos / Inativos** na listagem de Kits ou Peças.
+### 🔹 01:35 – 02:20 | Correção do Teste 3 (Fechamento Acidental do Modal ao Clicar no Fundo Escuro)
+* **[Na Tela]:** Vá em **Softwares & CLPs (`/softwares`)**, clique em **`+ Nova Implantação`**, digite algum texto no campo `Nome do Software` e clique várias vezes na área escura fora do modal (`backdrop`). Mostre que o modal **não fecha** e **não perde os dados digitados**.
 * **[O que falar]:**
-  > *"No **Teste 3**, ao exportar a planilha CSV do Simulador de Produção para o Excel, os caracteres acentuados ficavam desconfigurados. Corrigimos a rotina de exportação adicionando o marcador **UTF-8 BOM (`\uFEFF`)**, separador por ponto e vírgula e o agrupamento dos itens por fornecedor para facilitar a cotação de compras.*  
-  > *No **Teste 4**, como o sistema bloqueia a exclusão física de itens que já possuem histórico de auditoria, implementamos a **inativação lógica** com o botão de Ativar e Inativar tanto em Fornecedores quanto em Peças e Kits, permitindo ocultar itens obsoletos sem perder o histórico passado."*
+  > *"No **Teste 3**, durante o preenchimento do formulário de **Nova Implantação de Software**, um clique acidental fora da janela modal fechava o formulário imediatamente e descartava tudo o que o usuário havia digitado. Ajustamos o componente `Modal.tsx` com a propriedade `closeOnBackdrop = false`: agora, clicar no fundo escuro não fecha a janela acidentalmente, protegendo os dados preenchidos até que o usuário clique explicitamente em `Cancelar` ou no `X`."*
 
-### 🔹 02:20 – 03:00 | Melhoria do Teste 5 (Compatibilidade MySQL Linux na Nuvem e Swagger)
-* **[Na Tela]:** Mostre a aba do Swagger em produção (`https://shelfapi.onrender.com/swagger`) e o commit de padronização dos repositórios no GitHub (`ShelfAPI`).
+### 🔹 02:20 – 03:15 | Correção dos Testes 4 e 5 (Inativação Lógica, Importação de XML, Ordenação de Colunas e CSV UTF-8 BOM)
+* **[Na Tela]:** Vá em **Estoque & Peças (`/items/estoque`)**:
+  1. Mostre o botão **Ativar/Inativar** na linha de uma peça e abra rapidamente o modal **Importar XML (NF-e)**.
+  2. Clique nos cabeçalhos das colunas (**ID**, **Nome**, **Saldo Atual**) mostrando a ordenação dinâmica, e mencione a exportação CSV com UTF-8 BOM no Simulador.
 * **[O que falar]:**
-  > *"Por fim, no **Teste 5**, realizado diretamente no ambiente em nuvem, identificamos que o MySQL em servidor Linux diferenciava maiúsculas e minúsculas nos nomes das tabelas, gerando erro 500 no login, além de o Swagger estar desabilitado em produção. Padronizamos todas as queries SQL dos 7 repositórios da API para nomes de tabelas em letras minúsculas e habilitamos o Swagger em produção no `Program.cs`. Todas as correções estão rastreadas em commits no GitHub e 100% funcionais. Muito obrigado!"*
+  > *"No **Teste 4**, implementamos a **inativação lógica** (`Ativo/Inativo`) para permitir ocultar peças, kits e fornecedores obsoletos que já possuem histórico de auditoria, além do vínculo de **Nota Fiscal** e da **Importação em Lote via arquivo XML de NF-e**.*  
+  > *E no **Teste 5**, adicionamos a **ordenação dinâmica** ao clicar no cabeçalho de qualquer coluna das tabelas (`SortableTh`) e corrigimos a exportação CSV do **Simulador de Produção** com codificação **UTF-8 BOM** e agrupamento por fornecedor para abrir com acentuação perfeita no Excel. Todas as correções foram registradas no GitHub. Muito obrigado!"*

@@ -45,12 +45,32 @@ export function getErrorMessage(error: unknown): string {
     const err = error as AxiosError<{ message?: string; title?: string; errors?: Record<string, string[]> } | string>;
     if (err.response?.data) {
       if (typeof err.response.data === "string") {
+        // Evita exibir stack traces brutas do servidor na interface
+        if (err.response.data.includes("Exception") || err.response.data.includes("at Microsoft.AspNetCore")) {
+          if (err.response.data.includes("Duplicate entry")) {
+            return "Este registro já existe no sistema (duplicidade detectada).";
+          }
+          return "Ocorreu um erro interno ao processar a solicitação no servidor.";
+        }
         return err.response.data;
       }
       if (err.response.data.message) {
         return err.response.data.message;
       }
+      if (err.response.data.errors) {
+        const firstErrorList = Object.values(err.response.data.errors)[0];
+        if (firstErrorList && firstErrorList.length > 0) {
+          const firstMsg = firstErrorList[0];
+          if (firstMsg.includes("could not be converted") || firstMsg.includes("is not valid")) {
+            return "O valor numérico informado excede o limite permitido.";
+          }
+          return firstMsg;
+        }
+      }
       if (err.response.data.title) {
+        if (err.response.data.title === "One or more validation errors occurred.") {
+          return "Um ou mais campos possuem valores inválidos. Verifique os dados informados.";
+        }
         return err.response.data.title;
       }
     }
