@@ -1,6 +1,8 @@
 export interface KitItemDisponibilidade {
   itemId: number;
   nomeItem: string;
+  fornecedorId?: number | null;
+  nomeFornecedor?: string;
   quantidadeNecessaria: number;
   saldoEstoqueItem: number;
   isPainel: boolean;
@@ -76,6 +78,8 @@ export interface ItemSimulacaoKitOrigem {
 export interface ItemSimulacaoResultado {
   itemId: number;
   nomeItem: string;
+  fornecedorId?: number | null;
+  nomeFornecedor?: string;
   quantidadeTotalNecessaria: number;
   saldoEstoqueItem: number;
   saldoAposMontagem: number;

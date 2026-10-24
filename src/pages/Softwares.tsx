@@ -15,6 +15,8 @@ import type { Software, CreateSoftwareDto, UpdateSoftwareDto } from "../types/so
 import type { Kit } from "../types/kit";
 import { Modal } from "../components/Modal";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { SortableTh } from "../components/SortableTh";
+import { useTableSort } from "../hooks/useTableSort";
 import { useToast } from "../hooks/useToast";
 import { getErrorMessage } from "../api/http";
 
@@ -230,6 +232,13 @@ export default function Softwares() {
     });
   }, [softwares, searchTerm, filtroTipo, filtroStatus]);
 
+  const {
+    items: sortedSoftwares,
+    sortKey,
+    sortDirection,
+    requestSort,
+  } = useTableSort(filteredSoftwares, "id", "asc");
+
   const formatarData = (dataStr?: string) => {
     if (!dataStr) return "—";
     try {
@@ -368,19 +377,80 @@ export default function Softwares() {
           <table className="data-table">
             <thead>
               <tr>
-                <th style={{ width: "80px" }}>ID</th>
-                <th>Aplicação / Software</th>
-                <th style={{ width: "110px" }}>Versão</th>
-                <th>Cliente Pedinte</th>
-                <th style={{ width: "120px" }}>Dispositivo</th>
-                <th>Kit Instalado na Máquina</th>
-                <th style={{ width: "140px" }}>Data Instalação</th>
-                <th style={{ width: "140px" }}>Status</th>
+                <SortableTh
+                  sortKey="id"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                  style={{ width: "80px" }}
+                >
+                  ID
+                </SortableTh>
+                <SortableTh
+                  sortKey="nomeSoftware"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                >
+                  Aplicação / Software
+                </SortableTh>
+                <SortableTh
+                  sortKey="versao"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                  style={{ width: "110px" }}
+                >
+                  Versão
+                </SortableTh>
+                <SortableTh
+                  sortKey="cliente"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                >
+                  Cliente Pedinte
+                </SortableTh>
+                <SortableTh
+                  sortKey="tipoDispositivo"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                  style={{ width: "120px" }}
+                >
+                  Dispositivo
+                </SortableTh>
+                <SortableTh
+                  sortKey="nomeKit"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                >
+                  Kit Instalado na Máquina
+                </SortableTh>
+                <SortableTh
+                  sortKey="dataInstalacao"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                  style={{ width: "140px" }}
+                >
+                  Data Instalação
+                </SortableTh>
+                <SortableTh
+                  sortKey="status"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                  style={{ width: "140px" }}
+                >
+                  Status
+                </SortableTh>
                 <th style={{ width: "110px", textAlign: "right" }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {filteredSoftwares.map((s) => (
+              {sortedSoftwares.map((s) => (
                 <tr key={s.id}>
                   <td>
                     <span className="badge badge-blue">#{s.id}</span>
@@ -456,6 +526,7 @@ export default function Softwares() {
       <Modal
         isOpen={isFormModalOpen}
         onClose={() => !submitting && setIsFormModalOpen(false)}
+        closeOnBackdrop={false}
         title={
           editingSoftware
             ? "Editar Implantação de Software"
@@ -547,11 +618,13 @@ export default function Softwares() {
               disabled={submitting}
             >
               <option value="">-- Selecione um Kit do ERP (Opcional) --</option>
-              {kits.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.nome} (Kit #{k.id})
-                </option>
-              ))}
+              {kits
+                .filter((k) => k.ativo !== false || k.id === kitId)
+                .map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.nome} (Kit #{k.id}){k.ativo === false ? " (Inativo)" : ""}
+                  </option>
+                ))}
               <option value="custom">Outro (Digitar Nome Manualmente)</option>
             </select>
           </div>

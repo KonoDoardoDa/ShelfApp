@@ -25,6 +25,10 @@ export const fornecedorService = {
     });
   },
 
+  async toggleStatus(id: number): Promise<void> {
+    await api.patch(`/Fornecedor/ToggleStatus/${id}`);
+  },
+
   async delete(id: number): Promise<void> {
     await api.delete("/Fornecedor/Delete", {
       params: { id },

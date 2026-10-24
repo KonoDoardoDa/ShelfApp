@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import KpiCard from "../components/KpiCard";
 import { Pagination } from "../components/Pagination";
+import { SortableTh } from "../components/SortableTh";
+import { useTableSort } from "../hooks/useTableSort";
 import { fornecedorService } from "../services/fornecedorService";
 import { itemService } from "../services/itemService";
 import type { Item } from "../types/item";
@@ -84,6 +86,21 @@ export default function Home() {
     return [...itensZerados, ...itensBaixoEstoque];
   }, [itensZerados, itensBaixoEstoque, criticalFilter]);
 
+  const enrichedCriticalItens = useMemo(() => {
+    return criticalItens.map((item) => ({
+      ...item,
+      fornecedorNome: fornecedorMap.get(item.fornecedorId) || `ID #${item.fornecedorId}`,
+    }));
+  }, [criticalItens, fornecedorMap]);
+
+  // Hook de Ordenação para a Tabela de Reposição Crítica
+  const {
+    items: sortedCriticalItens,
+    sortKey: criticalSortKey,
+    sortDirection: criticalSortDir,
+    requestSort: requestCriticalSort,
+  } = useTableSort(enrichedCriticalItens, "quantidadeEstoque", "asc");
+
   // Paginação do Monitor de Itens Críticos (inicia com 5 itens no Dashboard)
   const [criticalPage, setCriticalPage] = useState<number>(1);
   const [criticalPageSize, setCriticalPageSize] = useState<number>(5);
@@ -94,8 +111,8 @@ export default function Home() {
 
   const paginatedCriticalItens = useMemo(() => {
     const start = (criticalPage - 1) * criticalPageSize;
-    return criticalItens.slice(start, start + criticalPageSize);
-  }, [criticalItens, criticalPage, criticalPageSize]);
+    return sortedCriticalItens.slice(start, start + criticalPageSize);
+  }, [sortedCriticalItens, criticalPage, criticalPageSize]);
 
   return (
     <div className="page-container">
@@ -275,10 +292,40 @@ export default function Home() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th style={{ width: "80px" }}>ID</th>
-                    <th>Nome da Peça / Componente</th>
-                    <th>Fornecedor</th>
-                    <th style={{ width: "160px" }}>Saldo Atual</th>
+                    <SortableTh
+                      sortKey="id"
+                      currentSortKey={criticalSortKey}
+                      currentDirection={criticalSortDir}
+                      onSort={requestCriticalSort}
+                      style={{ width: "80px" }}
+                    >
+                      ID
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="nome"
+                      currentSortKey={criticalSortKey}
+                      currentDirection={criticalSortDir}
+                      onSort={requestCriticalSort}
+                    >
+                      Nome da Peça / Componente
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="fornecedorNome"
+                      currentSortKey={criticalSortKey}
+                      currentDirection={criticalSortDir}
+                      onSort={requestCriticalSort}
+                    >
+                      Fornecedor
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="quantidadeEstoque"
+                      currentSortKey={criticalSortKey}
+                      currentDirection={criticalSortDir}
+                      onSort={requestCriticalSort}
+                      style={{ width: "160px" }}
+                    >
+                      Saldo Atual
+                    </SortableTh>
                     <th style={{ width: "160px", textAlign: "right" }}>Ação Rápida</th>
                   </tr>
                 </thead>

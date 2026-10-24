@@ -259,7 +259,7 @@
 
 .data-table th {
   background-color: var(--table-header-bg);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;

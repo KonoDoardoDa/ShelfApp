@@ -19,6 +19,9 @@ import {
   FileText,
   Layers,
   Hammer,
+  Power,
+  FileSpreadsheet,
+  Upload,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { itemService } from "../../services/itemService";
@@ -36,7 +39,10 @@ import type { Fornecedor } from "../../types/fornecedor";
 import type { KitSaldo } from "../../types/estoqueKit";
 import { Modal } from "../../components/Modal";
 import { ConfirmModal } from "../../components/ConfirmModal";
+import { ImportarXmlModal } from "../../components/ImportarXmlModal";
 import { Pagination } from "../../components/Pagination";
+import { SortableTh } from "../../components/SortableTh";
+import { useTableSort } from "../../hooks/useTableSort";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../hooks/useAuth";
@@ -49,6 +55,7 @@ interface EstoqueRow {
   fornecedorNome: string;
   saldo: number;
   descricao?: string | null;
+  ativo?: boolean;
   item?: Item;
   kit?: KitSaldo;
 }
@@ -107,6 +114,7 @@ export default function Estoque() {
   const [tipoMovimento, setTipoMovimento] = useState<"Entrada" | "Saida">("Entrada");
   const [quantidadeMovimento, setQuantidadeMovimento] = useState<number>(1);
   const [motivoMovimento, setMotivoMovimento] = useState<string>("");
+  const [notaFiscalMovimento, setNotaFiscalMovimento] = useState<string>("");
   const [submittingEstoque, setSubmittingEstoque] = useState<boolean>(false);
 
   // Modal de Auditoria e Histórico de Movimentações
@@ -116,6 +124,9 @@ export default function Estoque() {
   const [loadingAudit, setLoadingAudit] = useState<boolean>(false);
   const [auditSearch, setAuditSearch] = useState<string>("");
   const [auditFilterTipo, setAuditFilterTipo] = useState<string>("all");
+
+  // Modal de Importação Massiva via XML
+  const [isImportXmlModalOpen, setIsImportXmlModalOpen] = useState<boolean>(false);
 
   const carregarDados = useCallback(async () => {
     try {
@@ -152,7 +163,8 @@ export default function Estoque() {
   const handleOpenCreateModal = () => {
     setEditingItem(null);
     setNome("");
-    setFornecedorId(fornecedores.length > 0 ? fornecedores[0].id : "");
+    const defaultFornecedor = fornecedores.find((f) => f.ativo !== false);
+    setFornecedorId(defaultFornecedor ? defaultFornecedor.id : fornecedores.length > 0 ? fornecedores[0].id : "");
     setDescricao("");
     setIsFormModalOpen(true);
   };
@@ -170,12 +182,24 @@ export default function Estoque() {
     setIsDeleteModalOpen(true);
   };
 
+  const handleToggleItemStatus = async (item: Item) => {
+    try {
+      await itemService.toggleStatus(item.id);
+      const novoStatus = item.ativo === false ? "reativado" : "inativado";
+      success(`Item "${item.nome}" ${novoStatus} com sucesso!`);
+      await carregarDados();
+    } catch (err) {
+      toastError(getErrorMessage(err), "Falha ao alterar status");
+    }
+  };
+
   // Abertura de Modal de Movimentação de Estoque
   const handleOpenEstoqueModal = (item: Item, tipoInicial: "Entrada" | "Saida" = "Entrada") => {
     setStockItem(item);
     setTipoMovimento(tipoInicial);
     setQuantidadeMovimento(1);
     setMotivoMovimento("");
+    setNotaFiscalMovimento("");
     setIsEstoqueModalOpen(true);
   };
 
@@ -217,6 +241,7 @@ export default function Estoque() {
           nome: nome.trim(),
           fornecedorId: Number(fornecedorId),
           descricao: descricao.trim() || null,
+          ativo: editingItem.ativo ?? true,
         };
         await itemService.update(updateData);
         success(`Item "${nome.trim()}" atualizado com sucesso!`);
@@ -225,6 +250,7 @@ export default function Estoque() {
           nome: nome.trim(),
           fornecedorId: Number(fornecedorId),
           descricao: descricao.trim() || null,
+          ativo: true,
         };
         await itemService.create(createData);
         success(`Item "${nome.trim()}" criado com sucesso!`);
@@ -249,7 +275,7 @@ export default function Estoque() {
       setDeletingItem(null);
       await carregarDados();
     } catch (err) {
-      toastError(getErrorMessage(err), "Falha ao excluir item");
+      toastError(getErrorMessage(err), "Aviso do ERP");
     } finally {
       setDeleting(false);
     }
@@ -260,8 +286,8 @@ export default function Estoque() {
     e.preventDefault();
     if (!stockItem) return;
 
-    if (quantidadeMovimento <= 0) {
-      toastError("Informe uma quantidade maior que zero.");
+    if (quantidadeMovimento <= 0 || quantidadeMovimento > 1000000) {
+      toastError("A quantidade a ser movimentada deve ser entre 1 e 1.000.000 unidades.");
       return;
     }
 
@@ -278,6 +304,7 @@ export default function Estoque() {
         tipo: tipoMovimento,
         quantidade: Number(quantidadeMovimento),
         motivo: motivoMovimento.trim() || null,
+        notaFiscal: tipoMovimento === "Entrada" && notaFiscalMovimento.trim() ? notaFiscalMovimento.trim() : null,
         usuarioNome: user?.nome || user?.email || "Operador",
       };
 
@@ -301,6 +328,7 @@ export default function Estoque() {
       fornecedorNome: fornecedorMap.get(i.fornecedorId) || `ID #${i.fornecedorId}`,
       saldo: i.quantidadeEstoque ?? 0,
       descricao: i.descricao,
+      ativo: i.ativo !== false,
       item: i,
     }));
 
@@ -311,6 +339,7 @@ export default function Estoque() {
       fornecedorNome: "Montagem Interna / Fábrica",
       saldo: k.saldoFisico,
       descricao: `Kit composto por ${k.totalItensComposicao} peças (${k.capacidadeMontagem} montagens disponíveis)`,
+      ativo: true,
       kit: k,
     }));
 
@@ -335,22 +364,32 @@ export default function Estoque() {
       const qtd = row.saldo;
       let matchesStatus = true;
       if (selectedStatusEstoque === "normal") {
-        matchesStatus = qtd > 10;
+        matchesStatus = qtd > 10 && row.ativo !== false;
       } else if (selectedStatusEstoque === "baixo") {
-        matchesStatus = qtd > 0 && qtd <= 10;
+        matchesStatus = qtd > 0 && qtd <= 10 && row.ativo !== false;
       } else if (selectedStatusEstoque === "zerado") {
-        matchesStatus = qtd <= 0;
+        matchesStatus = qtd <= 0 && row.ativo !== false;
+      } else if (selectedStatusEstoque === "inativo") {
+        matchesStatus = row.ativo === false;
       }
 
       return matchesSearch && matchesFornecedor && matchesStatus;
     });
   }, [allRows, searchTerm, selectedFornecedorFilter, selectedStatusEstoque]);
 
-  // Registros paginados para renderização na tabela
+  // Hook de Ordenação para a Tabela Principal
+  const {
+    items: sortedRows,
+    sortKey,
+    sortDirection,
+    requestSort,
+  } = useTableSort(filteredRows, "id", "asc");
+
+  // Registros paginados baseados no array ordenado
   const paginatedRows = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, currentPage, pageSize]);
+    return sortedRows.slice(start, start + pageSize);
+  }, [sortedRows, currentPage, pageSize]);
 
   // Filtragem dos logs de Auditoria
   const filteredAudit = useMemo(() => {
@@ -360,42 +399,35 @@ export default function Estoque() {
         !query ||
         log.nomeItem.toLowerCase().includes(query) ||
         (log.motivo && log.motivo.toLowerCase().includes(query)) ||
-        log.usuarioNome.toLowerCase().includes(query) ||
+        (log.notaFiscal && log.notaFiscal.toLowerCase().includes(query)) ||
+        (log.fornecedorNome && log.fornecedorNome.toLowerCase().includes(query)) ||
+        (log.usuarioNome && log.usuarioNome.toLowerCase().includes(query)) ||
         log.itemId.toString().includes(query);
 
       const matchesTipo =
-        auditFilterTipo === "all" ||
-        log.tipo.toUpperCase() === auditFilterTipo.toUpperCase();
+        auditFilterTipo === "all" || log.tipo.toLowerCase() === auditFilterTipo.toLowerCase();
 
       return matchesSearch && matchesTipo;
     });
   }, [auditHistorico, auditSearch, auditFilterTipo]);
 
-  const renderBadgeEstoque = (quantidade?: number) => {
-    const qtd = quantidade ?? 0;
-    if (qtd > 10) {
-      return (
-        <span className="badge badge-green" style={{ fontWeight: 600 }}>
-          {qtd} un
-        </span>
-      );
+  // Hook de Ordenação para a Tabela de Auditoria
+  const {
+    items: sortedAudit,
+    sortKey: auditSortKey,
+    sortDirection: auditSortDir,
+    requestSort: requestAuditSort,
+  } = useTableSort(filteredAudit, "dataMovimentacao", "desc");
+
+  // Renderiza badge com cor semântica do saldo de estoque
+  const renderBadgeEstoque = (qtd: number) => {
+    if (qtd <= 0) {
+      return <span className="badge badge-red font-mono">Zerado ({qtd} un)</span>;
     }
-    if (qtd > 0) {
-      return (
-        <span className="badge badge-amber" style={{ fontWeight: 600 }} title="Estoque Baixo">
-          {qtd} un (Baixo)
-        </span>
-      );
+    if (qtd <= 10) {
+      return <span className="badge badge-amber font-mono">Estoque Baixo ({qtd} un)</span>;
     }
-    return (
-      <span
-        className="badge badge-gray"
-        style={{ color: "var(--danger)", borderColor: "rgba(239, 68, 68, 0.3)", fontWeight: 600 }}
-        title="Sem saldo em estoque"
-      >
-        0 un (Esgotado)
-      </span>
-    );
+    return <span className="badge badge-green font-mono">{qtd} un</span>;
   };
 
   const formatarDataHora = (dataStr: string) => {
@@ -411,6 +443,54 @@ export default function Estoque() {
     } catch {
       return dataStr;
     }
+  };
+
+  const handleExportAuditCSV = () => {
+    if (filteredAudit.length === 0) return;
+    const now = new Date();
+    const dataHoraStr = now.toLocaleDateString("pt-BR") + " " + now.toLocaleTimeString("pt-BR");
+
+    const targetItemObj = auditItemId ? itens.find((i) => i.id === auditItemId) : null;
+
+    let csv = "\uFEFF"; // UTF-8 BOM para Excel PT-BR
+    csv += "HISTÓRICO DE AUDITORIA DE MOVIMENTAÇÕES DE ESTOQUE (PEÇAS)\n";
+    csv += `Escopo;${targetItemObj ? `Item #${targetItemObj.id} - "${targetItemObj.nome.replace(/"/g, '""')}"` : "Todas as Peças do ERP"}\n`;
+    csv += `Data de Exportação;${dataHoraStr}\n`;
+    csv += `Total de Registros;${filteredAudit.length}\n\n`;
+
+    csv += "Data / Hora;Código Item;Nome da Peça;Fornecedor;Nota Fiscal;Tipo de Operação;Quantidade;Saldo Anterior;Saldo Posterior;Responsável;Motivo / Justificativa\n";
+
+    sortedAudit.forEach((log) => {
+      const dataFormatada = formatarDataHora(log.dataMovimentacao);
+      const nomeItem = (log.nomeItem || `Item #${log.itemId}`).replace(/"/g, '""');
+      const itemCadastrado = itens.find((i) => i.id === log.itemId);
+      const fornecedor = (
+        log.fornecedorNome ||
+        (itemCadastrado?.fornecedorId ? fornecedorMap.get(itemCadastrado.fornecedorId) : null) ||
+        "Sem Fornecedor"
+      ).replace(/"/g, '""');
+      const nfFormatada = (log.notaFiscal || "—").replace(/"/g, '""');
+      const tipo = log.tipo;
+      const isEntrada = tipo === "Entrada";
+      const qtdFormatada = isEntrada ? `+${log.quantidade}` : `-${log.quantidade}`;
+      const operador = (log.usuarioNome || "Sistema").replace(/"/g, '""');
+      const motivoFormatado = (log.motivo || "Não informado").replace(/"/g, '""');
+
+      csv += `"${dataFormatada}";#${log.itemId};"${nomeItem}";"${fornecedor}";"${nfFormatada}";"${tipo}";${qtdFormatada};${log.saldoAnterior};${log.saldoPosterior};"${operador}";"${motivoFormatado}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dataArquivo = now.toISOString().slice(0, 10);
+    const prefixo = auditItemId ? `logs_movimentacao_item_${auditItemId}` : "logs_movimentacoes_estoque_geral";
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${prefixo}_${dataArquivo}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    success("Logs de movimentações de estoque exportados para CSV com sucesso!");
   };
 
   const saldoAtualStockItem = stockItem?.quantidadeEstoque ?? 0;
@@ -435,6 +515,15 @@ export default function Estoque() {
         </div>
 
         <div className="page-header-actions">
+          <button
+            className="btn btn-secondary"
+            onClick={() => setIsImportXmlModalOpen(true)}
+            title="Importar itens e entradas de estoque em massa via arquivo XML (NF-e SEFAZ ou genérico)"
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <Upload size={16} color="var(--accent, #3b82f6)" />
+            Importar XML / NF-e
+          </button>
           <button
             className="btn btn-secondary"
             onClick={() => handleOpenAuditModal()}
@@ -512,7 +601,7 @@ export default function Estoque() {
             <option value="all">Todos os Fornecedores</option>
             {fornecedores.map((f) => (
               <option key={f.id} value={f.id.toString()}>
-                {f.nome}
+                {f.nome} {f.ativo === false ? "(Inativo)" : ""}
               </option>
             ))}
           </select>
@@ -520,7 +609,7 @@ export default function Estoque() {
 
         <select
           className="form-select"
-          style={{ width: "170px" }}
+          style={{ width: "180px" }}
           value={selectedStatusEstoque}
           onChange={(e) => setSelectedStatusEstoque(e.target.value)}
         >
@@ -528,6 +617,7 @@ export default function Estoque() {
           <option value="normal">Estoque Normal (&gt; 10)</option>
           <option value="baixo">Estoque Baixo (1 a 10)</option>
           <option value="zerado">Zerados (0 un)</option>
+          <option value="inativo">Inativos no ERP</option>
         </select>
 
         <span className="badge badge-gray">
@@ -573,19 +663,67 @@ export default function Estoque() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th style={{ width: "80px" }}>ID</th>
-                  <th>Nome do Registro</th>
-                  <th>Origem / Fornecedor</th>
-                  <th style={{ width: "170px" }}>Saldo em Estoque</th>
-                  <th>Descrição / Detalhes</th>
-                  <th style={{ width: "160px", textAlign: "right" }}>Ações</th>
+                  <SortableTh
+                    sortKey="id"
+                    currentSortKey={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={requestSort}
+                    style={{ width: "85px" }}
+                  >
+                    ID
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="nome"
+                    currentSortKey={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={requestSort}
+                  >
+                    Nome do Registro
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="fornecedorNome"
+                    currentSortKey={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={requestSort}
+                  >
+                    Origem / Fornecedor
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="saldo"
+                    currentSortKey={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={requestSort}
+                    style={{ width: "160px" }}
+                  >
+                    Saldo em Estoque
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="ativo"
+                    currentSortKey={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={requestSort}
+                    style={{ width: "105px" }}
+                    align="center"
+                  >
+                    Status
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="descricao"
+                    currentSortKey={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={requestSort}
+                  >
+                    Descrição / Detalhes
+                  </SortableTh>
+                  <th style={{ width: "180px", textAlign: "center" }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedRows.map((row) => {
                   const isKit = row.tipo === "KIT";
+                  const isAtivo = row.ativo !== false;
                   return (
-                    <tr key={`${row.tipo}-${row.id}`}>
+                    <tr key={`${row.tipo}-${row.id}`} style={{ opacity: isAtivo ? 1 : 0.65 }}>
                       <td>
                         {isKit ? (
                           <span className="badge badge-purple" title="Kit pré-montado">
@@ -609,7 +747,14 @@ export default function Estoque() {
                             <span style={{ color: "var(--text-primary)" }}>{row.nome}</span>
                           </div>
                         ) : (
-                          row.nome
+                          <span>
+                            {row.nome}
+                            {!isAtivo && (
+                              <span style={{ marginLeft: "8px", fontSize: "11px", color: "var(--text-muted)" }}>
+                                (Inoperante)
+                              </span>
+                            )}
+                          </span>
                         )}
                       </td>
                       <td>
@@ -632,6 +777,11 @@ export default function Estoque() {
                         )}
                       </td>
                       <td>{renderBadgeEstoque(row.saldo)}</td>
+                      <td style={{ textAlign: "center" }}>
+                        <span className={`badge ${isAtivo ? (isKit ? "badge-purple" : "badge-green") : "badge-gray"}`}>
+                          {isAtivo ? "Ativo" : "Inativo"}
+                        </span>
+                      </td>
                       <td style={{ color: "var(--text-secondary)", maxWidth: "300px" }}>
                         {row.descricao || (
                           <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
@@ -640,7 +790,7 @@ export default function Estoque() {
                         )}
                       </td>
                       <td>
-                        <div className="table-actions">
+                        <div className="table-actions" style={{ justifyContent: "center" }}>
                           {isKit ? (
                             <>
                               <Link
@@ -661,6 +811,13 @@ export default function Estoque() {
                           ) : (
                             row.item && (
                               <>
+                                <button
+                                  className={`btn btn-icon btn-sm ${isAtivo ? "btn-ghost-warning" : "btn-ghost-success"}`}
+                                  onClick={() => handleToggleItemStatus(row.item!)}
+                                  title={isAtivo ? "Inativar peça no ERP" : "Reativar peça"}
+                                >
+                                  <Power size={15} />
+                                </button>
                                 <button
                                   className="btn btn-icon btn-sm btn-ghost-primary"
                                   onClick={() => handleOpenEstoqueModal(row.item!)}
@@ -701,102 +858,159 @@ export default function Estoque() {
             </table>
           </div>
 
+          {/* Paginação do Dashboard */}
           <Pagination
             currentPage={currentPage}
-            totalItems={filteredRows.length}
             pageSize={pageSize}
-            pageSizeOptions={[10, 20, 50]}
+            totalItems={filteredRows.length}
             onPageChange={setCurrentPage}
-            onPageSizeChange={(newSize) => {
-              setPageSize(newSize);
-              setCurrentPage(1);
-            }}
-            itemLabel={filteredRows.length === 1 ? "registro" : "registros"}
+            onPageSizeChange={setPageSize}
           />
         </>
       )}
 
-      {/* Modal de Movimentação de Estoque (Adicionar / Diminuir) */}
+      {/* Modal de Formulário (Criar / Editar Item) */}
+      <Modal
+        isOpen={isFormModalOpen}
+        onClose={() => !submitting && setIsFormModalOpen(false)}
+        title={editingItem ? "Editar Item de Estoque" : "Cadastrar Novo Item"}
+      >
+        <form onSubmit={handleSubmitForm}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="item-nome">
+              Nome do Item *
+            </label>
+            <input
+              id="item-nome"
+              type="text"
+              className="form-input"
+              placeholder="Ex: Sensor Fotoelétrico, Parafuso M4, Conector RJ45..."
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              autoFocus
+              required
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="item-fornecedor">
+              Fornecedor do Item *
+            </label>
+            <select
+              id="item-fornecedor"
+              className="form-select"
+              value={fornecedorId}
+              onChange={(e) => setFornecedorId(Number(e.target.value))}
+              required
+              disabled={submitting}
+            >
+              <option value="" disabled>
+                Selecione um fornecedor
+              </option>
+              {fornecedores
+                .filter((f) => f.ativo !== false || f.id === fornecedorId)
+                .map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.nome} {f.ativo === false ? "(Inativo)" : ""}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="item-descricao">
+              Descrição / Especificações Técnicas
+            </label>
+            <textarea
+              id="item-descricao"
+              className="form-input"
+              style={{ minHeight: "80px", resize: "vertical" }}
+              placeholder="Detalhes adicionais, part number, dimensões, voltagem..."
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setIsFormModalOpen(false)}
+              disabled={submitting}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? "Salvando..." : editingItem ? "Salvar Alterações" : "Cadastrar Item"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal de Movimentação de Estoque (Entrada / Saída) */}
       <Modal
         isOpen={isEstoqueModalOpen}
         onClose={() => !submittingEstoque && setIsEstoqueModalOpen(false)}
-        title="Movimentação de Estoque"
+        title={`Movimentar Estoque: ${stockItem?.nome}`}
       >
         <form onSubmit={handleSubmitEstoque}>
-          {stockItem && (
-            <div
+          {/* Seletor do Tipo de Operação */}
+          <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+            <button
+              type="button"
+              className={`btn ${tipoMovimento === "Entrada" ? "btn-primary" : "btn-secondary"}`}
               style={{
-                backgroundColor: "var(--bg-app)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "10px",
-                padding: "14px 16px",
-                marginBottom: "20px",
+                flex: 1,
+                backgroundColor: tipoMovimento === "Entrada" ? "#10b981" : undefined,
+                borderColor: tipoMovimento === "Entrada" ? "#10b981" : undefined,
+                color: tipoMovimento === "Entrada" ? "#ffffff" : undefined,
                 display: "flex",
-                flexDirection: "column",
-                gap: "6px",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
               }}
+              onClick={() => setTipoMovimento("Entrada")}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>
-                  {stockItem.nome}
-                </span>
-                <span className="badge badge-blue">#{stockItem.id}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", color: "var(--text-secondary)" }}>
-                <span>Fornecedor: {fornecedorMap.get(stockItem.fornecedorId) || "—"}</span>
-                <span>
-                  Saldo Atual: <strong style={{ color: "var(--text-primary)" }}>{saldoAtualStockItem} un</strong>
-                </span>
-              </div>
-            </div>
-          )}
+              <TrendingUp size={16} />
+              Entrada de Peças
+            </button>
 
-          {/* Seleção do Tipo de Movimentação */}
-          <div className="form-group">
-            <label className="form-label">Tipo de Movimentação</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-              <button
-                type="button"
-                className={`btn ${
-                  tipoMovimento === "Entrada" ? "btn-primary" : "btn-secondary"
-                }`}
-                style={{
-                  padding: "10px",
-                  borderColor: tipoMovimento === "Entrada" ? "#10b981" : undefined,
-                  backgroundColor: tipoMovimento === "Entrada" ? "#10b981" : undefined,
-                }}
-                onClick={() => setTipoMovimento("Entrada")}
-              >
-                <TrendingUp size={16} />
-                Entrada (+ Adicionar)
-              </button>
-
-              <button
-                type="button"
-                className={`btn ${
-                  tipoMovimento === "Saida" ? "btn-danger" : "btn-secondary"
-                }`}
-                style={{ padding: "10px" }}
-                onClick={() => setTipoMovimento("Saida")}
-              >
-                <TrendingDown size={16} />
-                Saída (- Diminuir)
-              </button>
-            </div>
+            <button
+              type="button"
+              className={`btn ${tipoMovimento === "Saida" ? "btn-danger" : "btn-secondary"}`}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+              }}
+              onClick={() => setTipoMovimento("Saida")}
+            >
+              <TrendingDown size={16} />
+              Saída de Peças
+            </button>
           </div>
 
           {/* Quantidade a Movimentar */}
           <div className="form-group">
-            <label className="form-label" htmlFor="stock-qty">
-              Quantidade a {tipoMovimento === "Entrada" ? "Adicionar" : "Subtrair"} *
+            <label className="form-label" htmlFor="stock-qtd">
+              Quantidade de Unidades *
             </label>
             <input
-              id="stock-qty"
+              id="stock-qtd"
               type="number"
               min="1"
+              max="1000000"
               className="form-input"
+              placeholder="Ex: 5"
               value={quantidadeMovimento}
-              onChange={(e) => setQuantidadeMovimento(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              onChange={(e) => {
+                const val = parseInt(e.target.value) || 0;
+                setQuantidadeMovimento(Math.min(1000000, Math.max(1, val)));
+              }}
               required
               autoFocus
               disabled={submittingEstoque}
@@ -831,6 +1045,33 @@ export default function Estoque() {
             </strong>
           </div>
 
+          {/* Nota Fiscal (Opcional - Exclusivo para Entradas de Mercadoria) */}
+          {tipoMovimento === "Entrada" && (
+            <div className="form-group">
+              <label
+                className="form-label"
+                htmlFor="stock-nf"
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <FileText size={14} color="var(--accent, #3b82f6)" />
+                <span>Nota Fiscal (NF-e) / Documento</span>
+                <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "normal" }}>
+                  (Opcional)
+                </span>
+              </label>
+              <input
+                id="stock-nf"
+                type="text"
+                className="form-input"
+                placeholder="Ex: NF 10452, Pedido #8821, Remessa 42..."
+                value={notaFiscalMovimento}
+                onChange={(e) => setNotaFiscalMovimento(e.target.value)}
+                disabled={submittingEstoque}
+                maxLength={100}
+              />
+            </div>
+          )}
+
           {/* Motivo / Justificativa Auditável */}
           <div className="form-group">
             <label className="form-label" htmlFor="stock-motivo">
@@ -840,7 +1081,7 @@ export default function Estoque() {
               id="stock-motivo"
               type="text"
               className="form-input"
-              placeholder="Ex: Recebimento NF-e #1234, Montagem máquina Ambev, Avaria..."
+              placeholder="Ex: Recebimento fornecedor, Peça extra para teste, Ajuste..."
               value={motivoMovimento}
               onChange={(e) => setMotivoMovimento(e.target.value)}
               disabled={submittingEstoque}
@@ -881,6 +1122,7 @@ export default function Estoque() {
       <Modal
         isOpen={isAuditModalOpen}
         onClose={() => setIsAuditModalOpen(false)}
+        maxWidth="1180px"
         title={
           auditTargetItem
             ? `Auditoria de Estoque: ${auditTargetItem.nome} (#${auditTargetItem.id})`
@@ -890,12 +1132,12 @@ export default function Estoque() {
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {/* Barra de Filtros Interna da Auditoria */}
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-            <div className="search-input-wrapper" style={{ flex: "1 1 240px", minWidth: "220px" }}>
+            <div className="search-input-wrapper" style={{ flex: "1 1 260px", minWidth: "220px" }}>
               <Search size={15} />
               <input
                 type="text"
                 className="form-input"
-                placeholder="Filtrar por item, motivo ou operador..."
+                placeholder="Buscar por item, NF, fornecedor, operador ou motivo..."
                 value={auditSearch}
                 onChange={(e) => setAuditSearch(e.target.value)}
               />
@@ -907,67 +1149,135 @@ export default function Estoque() {
               value={auditFilterTipo}
               onChange={(e) => setAuditFilterTipo(e.target.value)}
             >
-              <option value="all">Todas Operações</option>
-              <option value="Entrada">Apenas Entradas (+)</option>
-              <option value="Saida">Apenas Saídas (-)</option>
+              <option value="all">Todas as Operações</option>
+              <option value="Entrada">Apenas Entradas</option>
+              <option value="Saida">Apenas Saídas</option>
             </select>
 
-            {auditItemId && (
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => handleOpenAuditModal()}
-                title="Remover filtro de item específico e ver todas as movimentações"
-              >
-                Ver Todas Movimentações
-              </button>
-            )}
-
+            <span className="badge badge-gray" style={{ marginLeft: "auto" }}>
+              Total: {filteredAudit.length}
+            </span>
             <button
-              className="btn btn-secondary btn-icon"
-              onClick={() => handleOpenAuditModal(auditItemId ?? undefined)}
-              title="Recarregar histórico"
-              disabled={loadingAudit}
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleExportAuditCSV}
+              disabled={filteredAudit.length === 0}
+              title="Exportar histórico de movimentações para arquivo CSV"
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
-              <RefreshCw size={15} className={loadingAudit ? "spinner" : ""} />
+              <FileSpreadsheet size={15} color="#10b981" />
+              Exportar Logs (CSV)
             </button>
           </div>
 
-          {/* Conteúdo do Histórico */}
+          {/* Tabela de Histórico de Auditoria */}
           {loadingAudit ? (
-            <div className="loading-container" style={{ padding: "40px 0" }}>
+            <div className="loading-container" style={{ padding: "40px" }}>
               <div className="spinner" />
-              <p>Carregando registros de auditoria...</p>
+              <p>Carregando histórico auditável da ShelfApi...</p>
             </div>
-          ) : filteredAudit.length === 0 ? (
-            <div className="empty-state" style={{ padding: "36px 16px" }}>
-              <div className="empty-state-icon" style={{ width: "48px", height: "48px" }}>
-                <History size={26} />
+          ) : sortedAudit.length === 0 ? (
+            <div className="empty-state" style={{ padding: "30px 10px" }}>
+              <div className="empty-state-icon">
+                <FileText size={36} color="var(--text-muted)" />
               </div>
-              <h3 className="empty-state-title" style={{ fontSize: "15px" }}>
-                Nenhuma movimentação encontrada
-              </h3>
-              <p className="empty-state-text" style={{ fontSize: "13px", marginBottom: "0" }}>
+              <p className="empty-state-text">
                 {auditSearch || auditFilterTipo !== "all"
                   ? "Nenhum registro corresponde aos filtros de busca."
                   : "Nenhuma alteração de saldo foi registrada para este escopo ainda."}
               </p>
             </div>
           ) : (
-            <div className="table-container" style={{ maxHeight: "420px", overflowY: "auto" }}>
-              <table className="data-table">
+            <div className="table-container" style={{ maxHeight: "440px", overflowY: "auto", overflowX: "auto" }}>
+              <table className="data-table" style={{ minWidth: "1080px" }}>
                 <thead>
                   <tr>
-                    <th style={{ width: "130px" }}>Data & Hora</th>
-                    {!auditItemId && <th>Item</th>}
-                    <th style={{ width: "110px" }}>Tipo</th>
-                    <th style={{ width: "100px" }}>Quantidade</th>
-                    <th style={{ width: "140px" }}>Evolução Saldo</th>
-                    <th style={{ width: "140px" }}>Responsável</th>
-                    <th>Motivo / Justificativa</th>
+                    <SortableTh
+                      sortKey="dataMovimentacao"
+                      currentSortKey={auditSortKey}
+                      currentDirection={auditSortDir}
+                      onSort={requestAuditSort}
+                      style={{ width: "135px" }}
+                    >
+                      Data & Hora
+                    </SortableTh>
+                    {!auditItemId && (
+                      <SortableTh
+                        sortKey="nomeItem"
+                        currentSortKey={auditSortKey}
+                        currentDirection={auditSortDir}
+                        onSort={requestAuditSort}
+                        style={{ width: "160px" }}
+                      >
+                        Item
+                      </SortableTh>
+                    )}
+                    <SortableTh
+                      sortKey="fornecedorNome"
+                      currentSortKey={auditSortKey}
+                      currentDirection={auditSortDir}
+                      onSort={requestAuditSort}
+                      style={{ width: "130px" }}
+                    >
+                      Fornecedor
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="notaFiscal"
+                      currentSortKey={auditSortKey}
+                      currentDirection={auditSortDir}
+                      onSort={requestAuditSort}
+                      style={{ width: "115px" }}
+                    >
+                      NF / Doc
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="tipo"
+                      currentSortKey={auditSortKey}
+                      currentDirection={auditSortDir}
+                      onSort={requestAuditSort}
+                      style={{ width: "105px" }}
+                    >
+                      Tipo
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="quantidade"
+                      currentSortKey={auditSortKey}
+                      currentDirection={auditSortDir}
+                      onSort={requestAuditSort}
+                      style={{ width: "95px" }}
+                    >
+                      Quantidade
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="saldoPosterior"
+                      currentSortKey={auditSortKey}
+                      currentDirection={auditSortDir}
+                      onSort={requestAuditSort}
+                      style={{ width: "135px" }}
+                    >
+                      Evolução Saldo
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="usuarioNome"
+                      currentSortKey={auditSortKey}
+                      currentDirection={auditSortDir}
+                      onSort={requestAuditSort}
+                      style={{ width: "160px" }}
+                    >
+                      Responsável
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="motivo"
+                      currentSortKey={auditSortKey}
+                      currentDirection={auditSortDir}
+                      onSort={requestAuditSort}
+                    >
+                      Motivo / Justificativa
+                    </SortableTh>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAudit.map((log) => {
+                  {sortedAudit.map((log) => {
                     const isEntrada = log.tipo === "Entrada";
                     return (
                       <tr key={log.id}>
@@ -985,6 +1295,38 @@ export default function Estoque() {
                             </span>
                           </td>
                         )}
+                        <td>
+                          <span style={{ fontSize: "12.5px", color: "var(--text-secondary)" }}>
+                            {log.fornecedorNome ||
+                              (itens.find((i) => i.id === log.itemId)?.fornecedorId
+                                ? fornecedorMap.get(itens.find((i) => i.id === log.itemId)!.fornecedorId)
+                                : null) ||
+                              "—"}
+                          </span>
+                        </td>
+                        <td>
+                          {log.notaFiscal ? (
+                            <span
+                              className="badge font-mono"
+                              style={{
+                                backgroundColor: "rgba(59, 130, 246, 0.12)",
+                                color: "#3b82f6",
+                                border: "1px solid rgba(59, 130, 246, 0.3)",
+                                fontWeight: 700,
+                                fontSize: "11.5px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                              title={`Nota Fiscal / Documento: ${log.notaFiscal}`}
+                            >
+                              <FileText size={11} />
+                              {log.notaFiscal}
+                            </span>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>—</span>
+                          )}
+                        </td>
                         <td>
                           {isEntrada ? (
                             <span className="badge badge-green" style={{ fontWeight: 600 }}>
@@ -1009,27 +1351,51 @@ export default function Estoque() {
                           {isEntrada ? `+${log.quantidade}` : `-${log.quantidade}`} un
                         </td>
                         <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12.5px" }}>
-                            <span style={{ color: "var(--text-muted)" }}>{log.saldoAnterior}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span className="badge badge-gray">{log.saldoAnterior} un</span>
                             <ArrowRight size={12} color="var(--text-muted)" />
-                            <strong style={{ color: "var(--text-primary)" }}>{log.saldoPosterior} un</strong>
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: isEntrada
+                                  ? "rgba(16, 185, 129, 0.15)"
+                                  : "rgba(239, 68, 68, 0.15)",
+                                color: isEntrada ? "#10b981" : "var(--danger)",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {log.saldoPosterior} un
+                            </span>
                           </div>
                         </td>
                         <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12.5px" }}>
-                            <User size={13} color="var(--accent)" />
-                            <span style={{ fontWeight: 500 }}>{log.usuarioNome}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                            <div
+                              style={{
+                                width: "22px",
+                                height: "22px",
+                                borderRadius: "50%",
+                                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                border: "1px solid rgba(255, 255, 255, 0.15)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              <User size={12} color="var(--accent, #3b82f6)" />
+                            </div>
+                            <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--text-primary)" }}>
+                              {log.usuarioNome || "Sistema"}
+                            </span>
                           </div>
                         </td>
-                        <td style={{ color: "var(--text-secondary)" }}>
+                        <td style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
                           {log.motivo ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                              <FileText size={13} color="var(--text-muted)" />
-                              <span>{log.motivo}</span>
-                            </div>
+                            <span>{log.motivo}</span>
                           ) : (
-                            <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontSize: "12px" }}>
-                              Sem motivo informado
+                            <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
+                              Não informado
                             </span>
                           )}
                         </td>
@@ -1041,110 +1407,16 @@ export default function Estoque() {
             </div>
           )}
 
-          <div className="modal-actions" style={{ marginTop: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button
               type="button"
               className="btn btn-secondary"
               onClick={() => setIsAuditModalOpen(false)}
             >
-              Fechar
+              Fechar Histórico
             </button>
           </div>
         </div>
-      </Modal>
-
-      {/* Modal de Formulário (Criar / Editar Item) */}
-      <Modal
-        isOpen={isFormModalOpen}
-        onClose={() => !submitting && setIsFormModalOpen(false)}
-        title={editingItem ? "Editar Item de Estoque" : "Cadastrar Novo Item no Estoque"}
-      >
-        <form onSubmit={handleSubmitForm}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="item-nome">
-              Nome do Item *
-            </label>
-            <input
-              id="item-nome"
-              type="text"
-              className="form-input"
-              placeholder="Ex: Sensor de Presença, Cabo HDMI, Placa Controladora..."
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              autoFocus
-              required
-              disabled={submitting}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="item-fornecedor">
-              Fornecedor Associado *
-            </label>
-            {fornecedores.length === 0 ? (
-              <div>
-                <input
-                  id="item-fornecedor"
-                  type="number"
-                  className="form-input"
-                  placeholder="ID do Fornecedor"
-                  value={fornecedorId}
-                  onChange={(e) => setFornecedorId(e.target.value ? Number(e.target.value) : "")}
-                  required
-                  disabled={submitting}
-                />
-                <span className="form-error">
-                  Nenhum fornecedor cadastrado. Crie um fornecedor no menu Fornecedores ou digite o ID manualmente.
-                </span>
-              </div>
-            ) : (
-              <select
-                id="item-fornecedor"
-                className="form-select"
-                value={fornecedorId}
-                onChange={(e) => setFornecedorId(Number(e.target.value))}
-                required
-                disabled={submitting}
-              >
-                <option value="" disabled>Selecione um fornecedor...</option>
-                {fornecedores.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nome} (ID #{f.id})
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="item-descricao">
-              Descrição / Observações (Opcional)
-            </label>
-            <textarea
-              id="item-descricao"
-              className="form-textarea"
-              rows={3}
-              placeholder="Especificações técnicas, dimensões, número de série ou detalhes adicionais..."
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setIsFormModalOpen(false)}
-              disabled={submitting}
-            >
-              Cancelar
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? "Salvando..." : editingItem ? "Salvar Alterações" : "Cadastrar Item"}
-            </button>
-          </div>
-        </form>
       </Modal>
 
       {/* Modal de Confirmação de Exclusão */}
@@ -1152,10 +1424,19 @@ export default function Estoque() {
         isOpen={isDeleteModalOpen}
         onClose={() => !deleting && setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Excluir Item de Estoque"
-        message={`Deseja realmente remover o item "${deletingItem?.nome}" (ID #${deletingItem?.id}) do estoque?`}
+        title="Excluir Item"
+        message={`Deseja realmente remover o item "${deletingItem?.nome}"? Se esta peça possuir movimentações de estoque ou vínculos com kits, a exclusão será impedida para manter a integridade do ERP e orientamos utilizar a opção Inativar.`}
         confirmLabel="Sim, Excluir"
         isLoading={deleting}
+      />
+
+      {/* Modal de Importação Massiva via XML (NF-e / SEFAZ) */}
+      <ImportarXmlModal
+        isOpen={isImportXmlModalOpen}
+        onClose={() => setIsImportXmlModalOpen(false)}
+        fornecedores={fornecedores}
+        itensExistentes={itens}
+        onSuccess={carregarDados}
       />
     </div>
   );

@@ -3,6 +3,8 @@ import type {
   MovimentarEstoqueDto,
   MovimentacaoResponse,
   MovimentacaoHistorico,
+  ImportarLoteRequestDto,
+  ImportarLoteResultadoDto,
 } from "../types/item";
 
 export const estoqueService = {
@@ -25,6 +27,11 @@ export const estoqueService = {
         limit,
       },
     });
+    return response.data;
+  },
+
+  async importarLote(data: ImportarLoteRequestDto): Promise<ImportarLoteResultadoDto> {
+    const response = await api.post<ImportarLoteResultadoDto>("/Estoque/ImportarLote", data);
     return response.data;
   },
 };

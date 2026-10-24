@@ -1,15 +1,18 @@
 export interface Kit {
   id: number;
   nome: string;
+  ativo?: boolean;
 }
 
 export interface CreateKitDto {
   nome: string;
+  ativo?: boolean;
 }
 
 export interface UpdateKitDto {
   id: number;
   nome: string;
+  ativo?: boolean;
 }
 
 export interface KitItem {
@@ -29,6 +32,7 @@ export interface KitItemDetail {
 export interface KitDetails {
   id: number;
   nome: string;
+  ativo?: boolean;
   items: KitItemDetail[];
 }
 

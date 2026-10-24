@@ -35,4 +35,8 @@ export const kitService = {
       params: { id },
     });
   },
+
+  async toggleStatus(id: number): Promise<void> {
+    await api.patch(`/Kit/ToggleStatus/${id}`);
+  },
 };

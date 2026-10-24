@@ -23,6 +23,10 @@ export const itemService = {
     await api.put("/Item/UpdateItem", data);
   },
 
+  async toggleStatus(id: number): Promise<void> {
+    await api.patch(`/Item/ToggleStatus/${id}`);
+  },
+
   async delete(id: number): Promise<void> {
     await api.delete("/Item/DeleteItem", {
       params: { id },

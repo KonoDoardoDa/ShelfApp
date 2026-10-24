@@ -32,6 +32,9 @@ body.dark {
   --warning-light: rgba(245, 158, 11, 0.15);
   --purple: #a855f7;
   --purple-light: rgba(168, 85, 247, 0.15);
+  --primary: #3b82f6;
+  --bg-card: #1e293b;
+  --bg-secondary: #1e293b;
   --input-bg: #090d16;
   --input-border: #334155;
   --card-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.35), 0 2px 6px -1px rgba(0, 0, 0, 0.2);
@@ -72,6 +75,9 @@ body.light {
   --warning-light: rgba(217, 119, 6, 0.1);
   --purple: #9333ea;
   --purple-light: rgba(147, 51, 234, 0.1);
+  --primary: #2563eb;
+  --bg-card: #ffffff;
+  --bg-secondary: #f1f5f9;
   --input-bg: #ffffff;
   --input-border: #cbd5e1;
   --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 4px 8px -2px rgba(0, 0, 0, 0.04);

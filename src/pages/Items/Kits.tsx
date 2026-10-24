@@ -20,6 +20,9 @@ import {
   User,
   Calculator,
   FileSpreadsheet,
+  Power,
+  CheckCircle,
+  Ban,
 } from "lucide-react";
 import { kitService } from "../../services/kitService";
 import { kitItemService } from "../../services/kitItemService";
@@ -37,12 +40,14 @@ import { Modal } from "../../components/Modal";
 import { ConfirmModal } from "../../components/ConfirmModal";
 import { Pagination } from "../../components/Pagination";
 import { SimuladorMontagemModal } from "../../components/SimuladorMontagemModal";
+import { SortableTh } from "../../components/SortableTh";
+import { useTableSort } from "../../hooks/useTableSort";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../hooks/useAuth";
 import { getErrorMessage } from "../../api/http";
 
 export default function Kits() {
-  const { success, error: toastError } = useToast();
+  const { success, error: toastError, warning: toastWarning } = useToast();
   const { user } = useAuth();
 
   const [kits, setKits] = useState<Kit[]>([]);
@@ -50,15 +55,16 @@ export default function Kits() {
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<"todos" | "ativos" | "inativos">("todos");
 
   // Paginação
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
 
-  // Reseta para a primeira página ao pesquisar ou alterar itens por página
+  // Reseta para a primeira página ao pesquisar ou alterar itens por página ou filtro de status
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, pageSize]);
+  }, [searchTerm, pageSize, statusFilter]);
 
   // Modal de Montar Kit (Dar saída em peças e entrada no kit)
   const [isMontarModalOpen, setIsMontarModalOpen] = useState<boolean>(false);
@@ -185,12 +191,14 @@ export default function Kits() {
         const updateData: UpdateKitDto = {
           id: editingKit.id,
           nome: kitNome.trim(),
+          ativo: editingKit.ativo ?? true,
         };
         await kitService.update(editingKit.id, updateData);
         success(`Kit "${kitNome.trim()}" atualizado com sucesso!`);
       } else {
         const createData: CreateKitDto = {
           nome: kitNome.trim(),
+          ativo: true,
         };
         await kitService.create(createData);
         success(`Kit "${kitNome.trim()}" criado com sucesso!`);
@@ -201,6 +209,17 @@ export default function Kits() {
       toastError(getErrorMessage(err), "Falha ao salvar kit");
     } finally {
       setSubmittingKit(false);
+    }
+  };
+
+  const handleToggleStatus = async (kit: Kit) => {
+    try {
+      await kitService.toggleStatus(kit.id);
+      const novoStatus = kit.ativo === false ? "reativado" : "inativado";
+      success(`Kit "${kit.nome}" ${novoStatus} com sucesso!`);
+      await carregarKits();
+    } catch (err) {
+      toastError(getErrorMessage(err), "Falha ao alterar status do kit");
     }
   };
 
@@ -262,8 +281,23 @@ export default function Kits() {
       toastError("Selecione um item do estoque.");
       return;
     }
-    if (quantidade <= 0) {
-      toastError("A quantidade deve ser maior que zero.");
+
+    const itemIdNum = Number(selectedItemId);
+    const existing = activeKitDetails.items?.find((i) => i.itemId === itemIdNum);
+    if (existing) {
+      const nomeItem =
+        existing.itemNome ||
+        estoqueItens.find((i) => i.id === itemIdNum)?.nome ||
+        `Item #${itemIdNum}`;
+      toastWarning(
+        `O item "${nomeItem}" já existe na composição deste kit (Quantidade atual: ${existing.quantidade} un). Incremente a quantidade do item existente na tabela abaixo em vez de adicioná-lo novamente.`,
+        "Item já existente no kit"
+      );
+      return;
+    }
+
+    if (quantidade <= 0 || quantidade > 1000000) {
+      toastError("A quantidade deve ser entre 1 e 1.000.000 unidades.");
       return;
     }
 
@@ -271,7 +305,7 @@ export default function Kits() {
       setAddingItemLoading(true);
       await kitItemService.create({
         kitId: activeKitDetails.id,
-        itemId: Number(selectedItemId),
+        itemId: itemIdNum,
         quantidade: Number(quantidade),
         isPainel,
       });
@@ -281,7 +315,12 @@ export default function Kits() {
       setQuantidade(1);
       setIsPainel(false);
     } catch (err) {
-      toastError(getErrorMessage(err), "Erro ao adicionar item ao kit");
+      const msg = getErrorMessage(err);
+      if (msg.toLowerCase().includes("já existe") || msg.toLowerCase().includes("duplicate")) {
+        toastWarning(msg, "Item já existente no kit");
+      } else {
+        toastError(msg, "Erro ao adicionar item ao kit");
+      }
     } finally {
       setAddingItemLoading(false);
     }
@@ -299,6 +338,11 @@ export default function Kits() {
   const handleSaveEditKitItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeKitDetails || !editingKitItem) return;
+
+    if (Number(editQtd) <= 0 || Number(editQtd) > 1000000) {
+      toastError("A quantidade deve ser entre 1 e 1.000.000 unidades.");
+      return;
+    }
 
     try {
       setUpdatingKitItemLoading(true);
@@ -438,18 +482,53 @@ export default function Kits() {
     }
   };
 
-  const handleOpenHistorico = async (kit: Kit) => {
-    setHistoricoKitTarget(kit);
+  const handleOpenHistorico = async (kit?: Kit) => {
+    setHistoricoKitTarget(kit || null);
     setIsHistoricoModalOpen(true);
     try {
       setLoadingHistorico(true);
-      const logs = await estoqueKitService.getHistorico(kit.id);
+      const logs = await estoqueKitService.getHistorico(kit ? kit.id : undefined);
       setHistoricoList(logs || []);
     } catch (err) {
-      toastError(getErrorMessage(err), "Erro ao carregar histórico do kit");
+      toastError(getErrorMessage(err), "Erro ao carregar histórico de movimentações");
     } finally {
       setLoadingHistorico(false);
     }
+  };
+
+  const handleExportKitAuditCSV = () => {
+    if (historicoList.length === 0) return;
+    const now = new Date();
+    const dataHoraStr = now.toLocaleDateString("pt-BR") + " " + now.toLocaleTimeString("pt-BR");
+
+    let csv = "\uFEFF"; // UTF-8 BOM para Excel PT-BR
+    csv += "HISTÓRICO DE AUDITORIA DE MOVIMENTAÇÕES DE KITS\n";
+    csv += `Escopo;${historicoKitTarget ? `Kit #${historicoKitTarget.id} - "${historicoKitTarget.nome.replace(/"/g, '""')}"` : "Todos os Kits do ERP"}\n`;
+    csv += `Data de Exportação;${dataHoraStr}\n`;
+    csv += `Total de Registros;${historicoList.length}\n\n`;
+
+    csv += "Data / Hora;Código Kit;Nome do Kit;Operação;Quantidade;Saldo Anterior;Saldo Posterior;Operador;Motivo\n";
+    sortedKitAudit.forEach((log) => {
+      const dataFormatada = new Date(log.dataMovimentacao).toLocaleString("pt-BR");
+      const motivoFormatado = (log.motivo || "Não informado").replace(/"/g, '""');
+      const operador = (log.usuarioNome || "Sistema").replace(/"/g, '""');
+      const isEntrada = log.tipo.toUpperCase() === "MONTAGEM" || log.tipo.toUpperCase() === "ENTRADA";
+      const qtdFormatada = isEntrada ? `+${log.quantidade}` : `-${log.quantidade}`;
+      csv += `"${dataFormatada}";#${log.kitId};"${log.nomeKit.replace(/"/g, '""')}";"${log.tipo}";${qtdFormatada};${log.saldoAnterior};${log.saldoPosterior};"${operador}";"${motivoFormatado}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dataArquivo = now.toISOString().slice(0, 10);
+    const prefixo = historicoKitTarget ? `logs_movimentacao_kit_${historicoKitTarget.id}` : "logs_movimentacoes_kits_geral";
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${prefixo}_${dataArquivo}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    success("Logs de movimentações de kit exportados para CSV com sucesso!");
   };
 
   const handleExportKitCSV = async (kit: Kit) => {
@@ -473,6 +552,22 @@ export default function Kits() {
     const painelItens = (itens || []).filter((i) => i.isPainel);
     const naoPainelItens = (itens || []).filter((i) => !i.isPainel);
 
+    // Agrupar itens por fornecedor para a visão consolidada
+    const fornecedoresMap = new Map<string, typeof itens>();
+    (itens || []).forEach((it) => {
+      const forn = it.nomeFornecedor || "Sem Fornecedor";
+      if (!fornecedoresMap.has(forn)) {
+        fornecedoresMap.set(forn, []);
+      }
+      fornecedoresMap.get(forn)!.push(it);
+    });
+
+    const fornecedoresOrdenados = Array.from(fornecedoresMap.keys()).sort((a, b) => {
+      if (a === "Sem Fornecedor") return 1;
+      if (b === "Sem Fornecedor") return -1;
+      return a.localeCompare(b, "pt-BR");
+    });
+
     const now = new Date();
     const dataHoraStr = now.toLocaleDateString("pt-BR") + " " + now.toLocaleTimeString("pt-BR");
 
@@ -484,12 +579,14 @@ export default function Kits() {
     csv += `Capacidade de Montagem com Estoque Atual;${capacidade} unidades\n`;
     csv += `Data de Exportação;${dataHoraStr}\n`;
     csv += `Total de Componentes de Painel;${painelItens.length} itens\n`;
-    csv += `Total de Componentes Gerais (Não-Painel);${naoPainelItens.length} itens\n\n`;
+    csv += `Total de Componentes Gerais (Não-Painel);${naoPainelItens.length} itens\n`;
+    csv += `Total de Insumos Únicos;${(itens || []).length} itens\n\n`;
 
+    // 1. COMPONENTES EXCLUSIVOS DO PAINEL (padrão antigo)
     csv += "1. COMPONENTES EXCLUSIVOS DO PAINEL\n";
     csv += "Código;Componente;Classificação;Qtd por Kit;Estoque Atual;Capacidade Parcial;Status\n";
     if (painelItens.length === 0) {
-      csv += "Nenhum componente de painel cadastrado para este kit;;;;;\n";
+      csv += "Nenhum componente de painel cadastrado para este kit;;;;;;\n";
     } else {
       painelItens.forEach((it) => {
         const status = it.saldoEstoqueItem >= it.quantidadeNecessaria ? "Disponível" : "Estoque Insuficiente";
@@ -498,10 +595,11 @@ export default function Kits() {
     }
     csv += "\n";
 
+    // 2. COMPONENTES GERAIS / ESTRUTURA (NÃO-PAINEL) (padrão antigo)
     csv += "2. COMPONENTES GERAIS / ESTRUTURA (NÃO-PAINEL)\n";
     csv += "Código;Componente;Classificação;Qtd por Kit;Estoque Atual;Capacidade Parcial;Status\n";
     if (naoPainelItens.length === 0) {
-      csv += "Nenhum componente geral (não-painel) cadastrado para este kit;;;;;\n";
+      csv += "Nenhum componente geral (não-painel) cadastrado para este kit;;;;;;\n";
     } else {
       naoPainelItens.forEach((it) => {
         const status = it.saldoEstoqueItem >= it.quantidadeNecessaria ? "Disponível" : "Estoque Insuficiente";
@@ -510,12 +608,39 @@ export default function Kits() {
     }
     csv += "\n";
 
-    csv += "3. LISTA COMPLETA CONSOLIDADA (BOM GERAL)\n";
-    csv += "Código;Componente;Classificação;Qtd por Kit;Estoque Atual;Capacidade Parcial;Status\n";
-    (itens || []).forEach((it) => {
-      const tipo = it.isPainel ? "Painel" : "Não-Painel";
-      const status = it.saldoEstoqueItem >= it.quantidadeNecessaria ? "Disponível" : "Estoque Insuficiente";
-      csv += `#${it.itemId};"${it.nomeItem.replace(/"/g, '""')}";${tipo};${it.quantidadeNecessaria};${it.saldoEstoqueItem};${it.montagensPossiveis} un;${status}\n`;
+    // 3. LISTA CONSOLIDADA DE INSUMOS POR FORNECEDOR (KIT + PAINEL UNIFICADOS - padrão atual)
+    csv += "3. LISTA CONSOLIDADA DE INSUMOS POR FORNECEDOR (KIT + PAINEL UNIFICADOS)\n";
+    csv += "Fornecedor;Código Item;Componente;Classificação;Qtd por Kit;Estoque Físico Atual;Capacidade Parcial;Status de Estoque\n";
+
+    if (!itens || itens.length === 0) {
+      csv += "Este kit não possui componentes cadastrados em sua composição;;;;;;;\n";
+    } else {
+      fornecedoresOrdenados.forEach((forn) => {
+        const itensForn = fornecedoresMap.get(forn) || [];
+        itensForn.sort((a, b) => a.nomeItem.localeCompare(b.nomeItem, "pt-BR"));
+
+        let subtotalQtd = 0;
+        itensForn.forEach((it) => {
+          subtotalQtd += it.quantidadeNecessaria;
+          const status = it.saldoEstoqueItem >= it.quantidadeNecessaria
+            ? "Disponível em Estoque"
+            : `Insuficiente (Falta ${it.quantidadeNecessaria - it.saldoEstoqueItem} un)`;
+          const classif = it.isPainel ? "Painel" : "Não-Painel";
+          csv += `"${forn.replace(/"/g, '""')}";#${it.itemId};"${it.nomeItem.replace(/"/g, '""')}";"${classif}";${it.quantidadeNecessaria};${it.saldoEstoqueItem};${it.montagensPossiveis} un;"${status}"\n`;
+        });
+
+        csv += `"[SUBTOTAL ${forn.replace(/"/g, '""')}]";"";"${itensForn.length} item(ns) distinto(s)";"";${subtotalQtd};"";"";""\n\n`;
+      });
+    }
+
+    // 4. RESUMO DE INSUMOS POR FORNECEDOR
+    csv += "\n4. RESUMO DE INSUMOS E CAPACIDADE POR FORNECEDOR\n";
+    csv += "Fornecedor;Total de Peças Diferentes;Total de Unidades por Kit;Capacidade de Montagem Suportada\n";
+    fornecedoresOrdenados.forEach((forn) => {
+      const itensForn = fornecedoresMap.get(forn) || [];
+      const totalUnidades = itensForn.reduce((acc, curr) => acc + curr.quantidadeNecessaria, 0);
+      const capacidadeGargaloForn = itensForn.length > 0 ? Math.min(...itensForn.map((i) => i.montagensPossiveis)) : 0;
+      csv += `"${forn.replace(/"/g, '""')}";${itensForn.length};${totalUnidades};${capacidadeGargaloForn} kit(s)\n`;
     });
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -532,18 +657,67 @@ export default function Kits() {
   };
 
   const filteredKits = useMemo(() => {
-    if (!searchTerm.trim()) return kits;
-    const term = searchTerm.toLowerCase();
-    return kits.filter(
-      (k) => k.nome.toLowerCase().includes(term) || k.id.toString().includes(term)
-    );
-  }, [kits, searchTerm]);
+    return kits.filter((k) => {
+      const term = searchTerm.toLowerCase();
+      const matchesSearch =
+        !searchTerm.trim() ||
+        k.nome.toLowerCase().includes(term) ||
+        k.id.toString().includes(term);
+
+      const isAtivo = k.ativo !== false;
+      const matchesStatus =
+        statusFilter === "todos" ||
+        (statusFilter === "ativos" && isAtivo) ||
+        (statusFilter === "inativos" && !isAtivo);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [kits, searchTerm, statusFilter]);
+
+  const enrichedKits = useMemo(() => {
+    return filteredKits.map((k) => {
+      const saldo = kitSaldosMap.get(k.id);
+      return {
+        ...k,
+        saldoFisico: saldo?.saldoFisico ?? 0,
+        capacidadeMontagem: saldo?.capacidadeMontagem ?? 0,
+        totalItensComposicao: saldo?.totalItensComposicao ?? 0,
+      };
+    });
+  }, [filteredKits, kitSaldosMap]);
+
+  const {
+    items: sortedKits,
+    sortKey: kitSortKey,
+    sortDirection: kitSortDir,
+    requestSort: requestKitSort,
+  } = useTableSort(enrichedKits, "id", "asc");
 
   // Kits paginados para exibição na tabela
   const paginatedKits = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredKits.slice(start, start + pageSize);
-  }, [filteredKits, currentPage, pageSize]);
+    return sortedKits.slice(start, start + pageSize);
+  }, [sortedKits, currentPage, pageSize]);
+
+  // Hook de Ordenação para os Itens da Composição (BOM)
+  const bomItems = useMemo(() => {
+    return activeKitDetails?.items || [];
+  }, [activeKitDetails]);
+
+  const {
+    items: sortedBomItems,
+    sortKey: bomSortKey,
+    sortDirection: bomSortDir,
+    requestSort: requestBomSort,
+  } = useTableSort(bomItems, "itemNome", "asc");
+
+  // Hook de Ordenação para o Histórico de Auditoria do Kit
+  const {
+    items: sortedKitAudit,
+    sortKey: kitAuditSortKey,
+    sortDirection: kitAuditSortDir,
+    requestSort: requestKitAuditSort,
+  } = useTableSort(historicoList, "dataMovimentacao", "desc");
 
   return (
     <div className="page-container">
@@ -558,6 +732,14 @@ export default function Kits() {
         </div>
 
         <div className="page-header-actions">
+          <button
+            className="btn btn-secondary"
+            onClick={() => handleOpenHistorico()}
+            title="Ver histórico consolidado de movimentações e montagens de todos os kits"
+          >
+            <History size={18} />
+            Histórico Geral
+          </button>
           <button
             className="btn btn-secondary"
             onClick={() => setIsSimuladorOpen(true)}
@@ -586,8 +768,8 @@ export default function Kits() {
       </div>
 
       {/* Filter Bar */}
-      <div className="filter-bar">
-        <div className="search-input-wrapper">
+      <div className="filter-bar" style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+        <div className="search-input-wrapper" style={{ flex: "1 1 300px" }}>
           <Search size={16} />
           <input
             type="text"
@@ -597,8 +779,38 @@ export default function Kits() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <span className="badge badge-gray">
-          Total: {filteredKits.length} {filteredKits.length === 1 ? "kit" : "kits"}
+
+        <div className="btn-group" style={{ display: "inline-flex", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--border)" }}>
+          <button
+            type="button"
+            className={`btn btn-sm ${statusFilter === "todos" ? "btn-primary" : "btn-secondary"}`}
+            style={{ borderRadius: 0, padding: "6px 12px" }}
+            onClick={() => setStatusFilter("todos")}
+          >
+            Todos ({kits.length})
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${statusFilter === "ativos" ? "btn-primary" : "btn-secondary"}`}
+            style={{ borderRadius: 0, padding: "6px 12px" }}
+            onClick={() => setStatusFilter("ativos")}
+          >
+            <CheckCircle size={13} style={{ marginRight: "4px" }} />
+            Ativos ({kits.filter((k) => k.ativo !== false).length})
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${statusFilter === "inativos" ? "btn-primary" : "btn-secondary"}`}
+            style={{ borderRadius: 0, padding: "6px 12px" }}
+            onClick={() => setStatusFilter("inativos")}
+          >
+            <Ban size={13} style={{ marginRight: "4px" }} />
+            Inativos ({kits.filter((k) => k.ativo === false).length})
+          </button>
+        </div>
+
+        <span className="badge badge-gray" style={{ marginLeft: "auto" }}>
+          Exibindo: {filteredKits.length} {filteredKits.length === 1 ? "kit" : "kits"}
         </span>
       </div>
 
@@ -640,27 +852,85 @@ export default function Kits() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th style={{ width: "80px" }}>ID</th>
-                  <th>Nome do Kit</th>
-                  <th style={{ width: "160px" }}>Estoque Físico (Prontos)</th>
-                  <th style={{ width: "190px" }}>Capacidade de Montagem</th>
-                  <th style={{ width: "170px", textAlign: "center" }}>Composição</th>
-                  <th style={{ width: "170px", textAlign: "center" }}>Ações</th>
+                  <SortableTh
+                    sortKey="id"
+                    currentSortKey={kitSortKey}
+                    currentDirection={kitSortDir}
+                    onSort={requestKitSort}
+                    style={{ width: "80px" }}
+                  >
+                    ID
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="nome"
+                    currentSortKey={kitSortKey}
+                    currentDirection={kitSortDir}
+                    onSort={requestKitSort}
+                  >
+                    Nome do Kit
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="saldoFisico"
+                    currentSortKey={kitSortKey}
+                    currentDirection={kitSortDir}
+                    onSort={requestKitSort}
+                    style={{ width: "160px" }}
+                  >
+                    Estoque Físico (Prontos)
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="capacidadeMontagem"
+                    currentSortKey={kitSortKey}
+                    currentDirection={kitSortDir}
+                    onSort={requestKitSort}
+                    style={{ width: "190px" }}
+                  >
+                    Capacidade de Montagem
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="totalItensComposicao"
+                    currentSortKey={kitSortKey}
+                    currentDirection={kitSortDir}
+                    onSort={requestKitSort}
+                    style={{ width: "170px" }}
+                    align="center"
+                  >
+                    Composição
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="ativo"
+                    currentSortKey={kitSortKey}
+                    currentDirection={kitSortDir}
+                    onSort={requestKitSort}
+                    style={{ width: "110px" }}
+                    align="center"
+                  >
+                    Status
+                  </SortableTh>
+                  <th style={{ width: "210px", textAlign: "center" }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedKits.map((kit) => {
+                  const isAtivo = kit.ativo !== false;
                   const saldo = kitSaldosMap.get(kit.id);
                   const saldoFisico = saldo?.saldoFisico ?? 0;
                   const capacidade = saldo?.capacidadeMontagem ?? 0;
                   const totalComposicao = saldo?.totalItensComposicao ?? 0;
 
                   return (
-                    <tr key={kit.id}>
+                    <tr key={kit.id} style={{ opacity: isAtivo ? 1 : 0.65 }}>
                       <td>
                         <span className="badge badge-blue">#{kit.id}</span>
                       </td>
-                      <td style={{ fontWeight: 600 }}>{kit.nome}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        {kit.nome}
+                        {!isAtivo && (
+                          <span style={{ marginLeft: "8px", fontSize: "11px", color: "var(--text-muted)" }}>
+                            (Inoperante)
+                          </span>
+                        )}
+                      </td>
                       <td>
                         {saldoFisico > 0 ? (
                           <span className="badge badge-green" style={{ fontWeight: 700 }}>
@@ -705,13 +975,25 @@ export default function Kits() {
                           Composição ({totalComposicao})
                         </button>
                       </td>
+                      <td style={{ textAlign: "center" }}>
+                        <span className={`badge ${isAtivo ? "badge-green" : "badge-gray"}`}>
+                          {isAtivo ? "Ativo" : "Inativo"}
+                        </span>
+                      </td>
                       <td>
                         <div className="table-actions">
                           <button
+                            className={`btn btn-icon btn-sm ${isAtivo ? "btn-ghost-warning" : "btn-ghost-success"}`}
+                            onClick={() => handleToggleStatus(kit)}
+                            title={isAtivo ? "Inativar kit no ERP" : "Reativar kit"}
+                          >
+                            <Power size={15} />
+                          </button>
+                          <button
                             className="btn btn-icon btn-sm btn-ghost-primary"
                             onClick={() => handleOpenMontar(kit.id)}
-                            title="Montar Kit (dar baixa em peças e creditar kit)"
-                            disabled={totalComposicao === 0 || capacidade === 0}
+                            title={!isAtivo ? "Kit inativo no ERP (não permite montagem)" : "Montar Kit (dar baixa em peças e creditar kit)"}
+                            disabled={!isAtivo || totalComposicao === 0 || capacidade === 0}
                           >
                             <Hammer size={15} />
                           </button>
@@ -780,27 +1062,28 @@ export default function Kits() {
       <Modal
         isOpen={isKitModalOpen}
         onClose={() => !submittingKit && setIsKitModalOpen(false)}
-        title={editingKit ? "Editar Kit" : "Criar Novo Kit"}
+        title={editingKit ? "Editar Kit" : "Cadastrar Novo Kit"}
+        maxWidth="500px"
       >
         <form onSubmit={handleSubmitKit}>
           <div className="form-group">
-            <label className="form-label" htmlFor="kit-nome">
+            <label className="form-label" htmlFor="kitNome">
               Nome do Kit *
             </label>
             <input
-              id="kit-nome"
+              id="kitNome"
               type="text"
               className="form-input"
-              placeholder="Ex: Kit de Segurança Avançado, Kit Automação Sala 1..."
+              placeholder="Ex: Kit Automação Batedeira 100L..."
               value={kitNome}
               onChange={(e) => setKitNome(e.target.value)}
-              autoFocus
               required
               disabled={submittingKit}
+              autoFocus
             />
           </div>
 
-          <div className="modal-actions">
+          <div className="modal-footer" style={{ padding: "16px 0 0 0", marginTop: "20px" }}>
             <button
               type="button"
               className="btn btn-secondary"
@@ -822,7 +1105,7 @@ export default function Kits() {
         onClose={() => !deletingKitLoading && setIsDeleteKitModalOpen(false)}
         onConfirm={handleConfirmDeleteKit}
         title="Excluir Kit"
-        message={`Deseja realmente excluir o kit "${deletingKit?.nome}"? Todos os vínculos de itens a este kit também serão afetados.`}
+        message={`Deseja realmente excluir o kit "${deletingKit?.nome}"? Kits com histórico de montagens, instalações ou saldo não podem ser excluídos, devendo ser inativados.`}
         confirmLabel="Sim, Excluir"
         isLoading={deletingKitLoading}
       />
@@ -875,9 +1158,13 @@ export default function Kits() {
                     <input
                       type="number"
                       min="1"
+                      max="1000000"
                       className="form-input"
                       value={quantidade}
-                      onChange={(e) => setQuantidade(Math.max(1, parseInt(e.target.value) || 1))}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setQuantidade(Math.min(1000000, Math.max(1, val)));
+                      }}
                       required
                       disabled={addingItemLoading}
                     />
@@ -940,14 +1227,39 @@ export default function Kits() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Item</th>
-                        <th style={{ width: "90px", textAlign: "center" }}>Qtd</th>
-                        <th style={{ width: "120px", textAlign: "center" }}>Tipo</th>
+                        <SortableTh
+                          sortKey="itemNome"
+                          currentSortKey={bomSortKey}
+                          currentDirection={bomSortDir}
+                          onSort={requestBomSort}
+                        >
+                          Item
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="quantidade"
+                          currentSortKey={bomSortKey}
+                          currentDirection={bomSortDir}
+                          onSort={requestBomSort}
+                          style={{ width: "90px" }}
+                          align="center"
+                        >
+                          Qtd
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="isPainel"
+                          currentSortKey={bomSortKey}
+                          currentDirection={bomSortDir}
+                          onSort={requestBomSort}
+                          style={{ width: "120px" }}
+                          align="center"
+                        >
+                          Tipo
+                        </SortableTh>
                         <th style={{ width: "100px", textAlign: "right" }}>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {activeKitDetails.items.map((item) => (
+                      {sortedBomItems.map((item) => (
                         <tr key={item.itemId}>
                           <td>
                             <div style={{ fontWeight: 600 }}>{item.itemNome || `Item #${item.itemId}`}</div>
@@ -1019,9 +1331,13 @@ export default function Kits() {
             <input
               type="number"
               min="1"
+              max="1000000"
               className="form-input"
               value={editQtd}
-              onChange={(e) => setEditQtd(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => {
+                const val = parseInt(e.target.value) || 0;
+                setEditQtd(Math.min(1000000, Math.max(1, val)));
+              }}
               required
               disabled={updatingKitItemLoading}
             />
@@ -1301,8 +1617,8 @@ export default function Kits() {
       <Modal
         isOpen={isHistoricoModalOpen}
         onClose={() => setIsHistoricoModalOpen(false)}
-        title={`Histórico de Movimentações: ${historicoKitTarget?.nome || "Kit"}`}
-        maxWidth="800px"
+        title={historicoKitTarget ? `Histórico de Movimentações: ${historicoKitTarget.nome} (#${historicoKitTarget.id})` : "Histórico Geral de Movimentações de Kits"}
+        maxWidth="1050px"
       >
         <div>
           {loadingHistorico ? (
@@ -1317,24 +1633,89 @@ export default function Kits() {
               </div>
               <h3 className="empty-state-title">Nenhuma movimentação registrada</h3>
               <p className="empty-state-text">
-                Este kit ainda não teve ordens de montagem, desmontagem ou ajustes manuais registrados.
+                {historicoKitTarget
+                  ? "Este kit ainda não teve ordens de montagem, desmontagem ou ajustes manuais registrados."
+                  : "Nenhuma movimentação de kit registrada no sistema até o momento."}
               </p>
             </div>
           ) : (
-            <div className="table-container" style={{ maxHeight: "380px", overflowY: "auto" }}>
-              <table className="data-table">
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+                <span className="badge badge-gray">Total: {historicoList.length} registro(s)</span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleExportKitAuditCSV}
+                  title="Exportar histórico de movimentações para arquivo CSV"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <FileSpreadsheet size={15} color="#10b981" />
+                  Exportar Logs (CSV)
+                </button>
+              </div>
+              <div className="table-container" style={{ maxHeight: "400px", overflowY: "auto", overflowX: "auto" }}>
+                <table className="data-table" style={{ minWidth: "900px" }}>
                 <thead>
                   <tr>
-                    <th style={{ width: "140px" }}>Data / Hora</th>
-                    <th style={{ width: "120px" }}>Operação</th>
-                    <th style={{ width: "90px", textAlign: "center" }}>Qtd</th>
-                    <th style={{ width: "120px", textAlign: "center" }}>Saldo</th>
-                    <th>Motivo</th>
-                    <th style={{ width: "110px" }}>Operador</th>
+                    <SortableTh
+                      sortKey="dataMovimentacao"
+                      currentSortKey={kitAuditSortKey}
+                      currentDirection={kitAuditSortDir}
+                      onSort={requestKitAuditSort}
+                      style={{ width: "140px" }}
+                    >
+                      Data / Hora
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="tipo"
+                      currentSortKey={kitAuditSortKey}
+                      currentDirection={kitAuditSortDir}
+                      onSort={requestKitAuditSort}
+                      style={{ width: "120px" }}
+                    >
+                      Operação
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="quantidade"
+                      currentSortKey={kitAuditSortKey}
+                      currentDirection={kitAuditSortDir}
+                      onSort={requestKitAuditSort}
+                      style={{ width: "90px" }}
+                      align="center"
+                    >
+                      Qtd
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="saldoPosterior"
+                      currentSortKey={kitAuditSortKey}
+                      currentDirection={kitAuditSortDir}
+                      onSort={requestKitAuditSort}
+                      style={{ width: "120px" }}
+                      align="center"
+                    >
+                      Saldo
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="motivo"
+                      currentSortKey={kitAuditSortKey}
+                      currentDirection={kitAuditSortDir}
+                      onSort={requestKitAuditSort}
+                    >
+                      Motivo
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="usuarioNome"
+                      currentSortKey={kitAuditSortKey}
+                      currentDirection={kitAuditSortDir}
+                      onSort={requestKitAuditSort}
+                      style={{ width: "110px" }}
+                    >
+                      Operador
+                    </SortableTh>
                   </tr>
                 </thead>
                 <tbody>
-                  {historicoList.map((log) => {
+                  {sortedKitAudit.map((log) => {
                     const isMontagem = log.tipo.toUpperCase() === "MONTAGEM" || log.tipo.toUpperCase() === "ENTRADA";
                     return (
                       <tr key={log.id}>
@@ -1378,7 +1759,8 @@ export default function Kits() {
                 </tbody>
               </table>
             </div>
-          )}
+          </>
+        )}
 
           <div className="modal-actions" style={{ marginTop: "16px" }}>
             <button type="button" className="btn btn-secondary" onClick={() => setIsHistoricoModalOpen(false)}>

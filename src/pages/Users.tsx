@@ -4,6 +4,8 @@ import { authService } from "../services/authService";
 import type { User, RegisterCredentials } from "../types/auth";
 import { Modal } from "../components/Modal";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { SortableTh } from "../components/SortableTh";
+import { useTableSort } from "../hooks/useTableSort";
 import { useToast } from "../hooks/useToast";
 import { useAuth } from "../hooks/useAuth";
 import { getErrorMessage } from "../api/http";
@@ -123,6 +125,13 @@ export default function Users() {
     );
   }, [users, searchTerm]);
 
+  const {
+    items: sortedUsers,
+    sortKey,
+    sortDirection,
+    requestSort,
+  } = useTableSort(filteredUsers, "id", "asc");
+
   if (currentUser && currentUser.role?.toLowerCase() !== "admin") {
     return (
       <div className="page-container">
@@ -224,16 +233,53 @@ export default function Users() {
           <table className="data-table">
             <thead>
               <tr>
-                <th style={{ width: "90px" }}>ID</th>
-                <th>Nome</th>
-                <th>E-mail</th>
-                <th>Perfil de Acesso</th>
-                <th>Status</th>
+                <SortableTh
+                  sortKey="id"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                  style={{ width: "90px" }}
+                >
+                  ID
+                </SortableTh>
+                <SortableTh
+                  sortKey="nome"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                >
+                  Nome
+                </SortableTh>
+                <SortableTh
+                  sortKey="email"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                >
+                  E-mail
+                </SortableTh>
+                <SortableTh
+                  sortKey="role"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                >
+                  Perfil de Acesso
+                </SortableTh>
+                <SortableTh
+                  sortKey="ativo"
+                  currentSortKey={sortKey}
+                  currentDirection={sortDirection}
+                  onSort={requestSort}
+                  style={{ width: "110px" }}
+                >
+                  Status
+                </SortableTh>
                 <th style={{ width: "110px", textAlign: "right" }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((u) => {
+              {sortedUsers.map((u) => {
                 const isCurrent = u.id === currentUser?.id;
                 return (
                   <tr key={u.id}>
@@ -349,7 +395,6 @@ export default function Users() {
             >
               <option value="Admin">Admin (Acesso total e gestão de usuários)</option>
               <option value="Operador">Operador (Estoque, kits e movimentação)</option>
-              <option value="Visualizador">Visualizador (Apenas consulta de relatórios)</option>
             </select>
           </div>
 

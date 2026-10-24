@@ -2,7 +2,7 @@ export interface User {
   id: number;
   nome: string;
   email: string;
-  role: "Admin" | "Operador" | "Visualizador" | string;
+  role: "Admin" | "Operador" | string;
   ativo: boolean;
   dataCriacao: string;
 }
