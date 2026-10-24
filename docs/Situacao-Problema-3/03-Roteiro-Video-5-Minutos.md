@@ -1,61 +1,81 @@
-# 🎬 Situação-Problema 3 — Roteiro Cronometrado para o Vídeo de Apresentação (5 Minutos)
+# 🎬 Roteiros Cronometrados dos 2 Vídeos do PIT II
 
 **Projeto:** ShelfApp ERP & ShelfApi  
 **Apresentador:** Eduardo Marcelo Pacheco Maticola (RGM: 34652671)  
-**Duração Alvo:** 4 min 45 seg a 5 min 00 seg  
-**Ferramenta Sugerida para Gravação:** OBS Studio, Loom ou Gravador Nativo do Windows (`Win + G`)  
+**Ferramenta Sugerida para Gravação:** OBS Studio, Loom ou Gravador Nativo do Windows (`Win + G`)
+
+> **Por que são 2 vídeos no relatório oficial?**
+> Assim como no relatório aprovado de referência (`Relatório-Cupcake.docx`), o template da Cruzeiro do Sul possui **dois campos distintos de vídeo**:
+> 1. **Vídeo 1 (Página 2 — Tabela `Codificação` / Situação-Problema 2):** exige **no mínimo 5 minutos** apresentando a arquitetura do código-fonte (Front-end, Back-end e Banco de Dados) e o funcionamento geral da aplicação sem erros.
+> 2. **Vídeo 2 (Página 6 — Tabela `Vídeo da Solução atualizada` / Situação-Problema 3):** exige **até 5 minutos** (pode ter entre **2 min 30 s e 4 min**) apresentando especificamente as melhorias e correções implementadas após os feedbacks dos 5 colegas.
+>
+> 💡 **Dica de Ouro:** Você **não precisa desfazer nenhuma linha de código** para gravar os dois vídeos! No **Vídeo 1**, você mostra o código no VS Code e faz o fluxo básico do sistema (sem tocar nas funções de Importar XML, ordenar colunas, inativar ou exportar CSV). Depois, no **Vídeo 2**, você foca diretamente em demonstrar essas 5 melhorias na prática e os commits no GitHub!
 
 ---
 
-## 💡 Preparação Rápida Antes de Apertar "Gravar"
-1. Deixe 3 abas abertas no navegador:
-   * **Aba 1:** Repositório do GitHub (`https://github.com/KonoDoardoDa/ShelfApp`) mostrando a pasta `/docs`.
-   * **Aba 2:** Swagger da API em produção no Render (`https://shelfapi.onrender.com/swagger`).
-   * **Aba 3:** Tela de Login do **ShelfApp** na Vercel (faça um login de teste 2 minutos antes para garantir que o servidor do Render já esteja "acordado" e rápido).
-2. Tenha um arquivo `.xml` de Nota Fiscal fácil na Área de Trabalho caso queira demonstrar o modal de importação XML.
+## 🎥 VÍDEO 1 — Código-Fonte e Solução em Funcionamento (Situação-Problema 2)
+* **Onde colar o link:** Página 2 do Word (`Link do vídeo narrado (no mínimo 5 min)`)
+* **Duração Alvo:** **5 min 10 seg a 5 min 40 seg** (importante passar de 5:00 para cumprir o requisito "no mínimo 5 min")
 
----
-
-## ⏱️ Roteiro Minuto a Minuto (O que mostrar na tela e o que falar)
-
-### 🔹 Bloco 1: Introdução, Escopo e Arquitetura em Nuvem (00:00 – 01:00)
-* **[Na Tela]:** Comece na aba do GitHub (`ShelfApp/docs`) e depois mostre rapidamente a aba do Swagger (`shelfapi.onrender.com/swagger`).
+### 🔹 00:00 – 01:30 | Apresentação e Explicação do Código Back-end (`ShelfApi`)
+* **[Na Tela]:** Abra o VS Code na solução `ShelfApi` (ou o GitHub da `ShelfAPI`). Mostre as pastas `Controllers`, `Services`, `Repositories`, `Models` e o arquivo `Program.cs`.
 * **[O que falar]:**
-  > *"Olá! Meu nome é Eduardo Maticola, estudante de Engenharia de Software, e este é o vídeo de apresentação do meu Projeto Integrador Transdisciplinar II: o **ShelfApp ERP**.*  
-  > *O objetivo do projeto é resolver um problema real da indústria de montagem de máquinas e painéis elétricos: o controle unificado de almoxarifado, a manufatura de kits baseados em listas de materiais (BOM) e a simulação de demanda de compras.*  
-  > *Seguindo o padrão arquitetural em camadas e MVC proposto na disciplina, construí o back-end em **C# com .NET 9 e Dapper** (a `ShelfApi`), o banco de dados relacional em **MySQL 8** hospedado na Aiven Cloud, e o front-end em **React 19 com TypeScript** hospedado na Vercel. Todo o código e a documentação das Situações-Problema 1, 2 e 3 estão organizados aqui no meu repositório do GitHub."*
+  > *"Olá! Meu nome é Eduardo Marcelo Pacheco Maticola, estudante de Engenharia de Software, e neste primeiro vídeo vou apresentar a codificação e o funcionamento do **ShelfApp ERP**, desenvolvido para o Projeto Integrador Transdisciplinar II.*  
+  > *O sistema resolve o controle de almoxarifado industrial, montagem de kits baseados em lista de materiais (BOM) e gestão de softwares de automação.*  
+  > *Começando pelo Back-end, construí a **ShelfApi** em **C# com .NET 9**, estruturada em camadas seguindo o padrão arquitetural MVC/REST:*  
+  > *Aqui na camada de **Models** e **DTOs** temos as entidades que espelham nosso banco de dados MySQL normalizado na 3ª Forma Normal.*  
+  > *Na camada de **Repositories**, utilizamos o micro-ORM **Dapper** para executar consultas SQL parametrizadas e transações ACID com `BeginTransaction` e `Commit`, garantindo que nenhuma montagem de kit deixe o estoque inconsistente.*  
+  > *Na camada de **Services**, concentramos todas as regras de negócio, como o cálculo de capacidade de montagem e validação de saldo.*  
+  > *E nos **Controllers**, expomos os endpoints REST protegidos por autenticação **JWT Bearer** e senhas criptografadas com **BCrypt**."*
+
+### 🔹 01:30 – 02:45 | Explicação do Código Front-end (`ShelfApp`) e Hospedagem Cloud
+* **[Na Tela]:** Mude para o VS Code do `ShelfApp` (mostre `src/api/http.ts`, `src/pages`, `src/services`, `src/components`) e depois mostre o navegador com o GitHub (`ShelfApp/docs`) e o Swagger (`shelfapi.onrender.com/swagger`).
+* **[O que falar]:**
+  > *"No Front-end, o **ShelfApp** foi desenvolvido como uma Single Page Application responsiva utilizando **React 19, TypeScript 5 e Vite**.*  
+  > *Organizamos a arquitetura em `services` para comunicação com a API via Axios, `hooks` customizados para controle de autenticação (`useAuth`), tema (`useTheme`) e notificações (`useToast`), e `pages` para cada módulo operacional.*  
+  > *Para a implantação em nuvem gratuita com HTTPS: o Front-end está publicado na **Vercel**, a API .NET 9 está conteinerizada com **Docker no Render**, e o banco de dados **MySQL 8** está hospedado na **Aiven Cloud**."*
+
+### 🔹 02:45 – 04:00 | Demonstração Funcional: Login, Dashboard e Almoxarifado
+* **[Na Tela]:** Acesse `https://shelf-app.vercel.app`, faça login, mostre o **Dashboard (`/`)**, depois vá em **Fornecedores (`/items/fornecedores`)** e **Estoque & Peças (`/items/estoque`)**. Faça uma movimentação simples de entrada ou saída de peça.
+* **[O que falar]:**
+  > *"Agora vou demonstrar a solução em funcionamento e sem erros. Ao realizar o login, recebemos o token JWT e acessamos o **Dashboard Executivo**, que apresenta em tempo real o total de itens, peças em baixo estoque, peças zeradas e fornecedores homologados, além do Monitor de Reposição Crítica.*  
+  > *Na tela de **Fornecedores**, cadastramos os parceiros da cadeia de suprimentos.*  
+  > *Já em **Almoxarifado & Estoque Unificado**, visualizamos tanto peças individuais quanto kits prontos, com badges coloridos de criticidade. Ao clicar em **Movimentar**, registramos uma entrada ou saída informando a quantidade e a justificativa, e o sistema já calcula a prévia do saldo e grava no histórico de auditoria."*
+
+### 🔹 04:00 – 05:20 | Demonstração Funcional: Manufatura de Kits, Softwares e Usuários
+* **[Na Tela]:** Acesse **Kits & Montagens (`/items/kits`)**, abra a **Composição (BOM)** de um kit, faça a montagem de 1 kit e mostre o **Simulador de Montagem**. Por fim, passe por **Softwares & CLPs (`/softwares`)** e **Usuários (`/users`)**.
+* **[O que falar]:**
+  > *"No módulo de **Kits e Manufatura**, configuramos a receita de cada kit (a BOM), definindo quais peças compõem o conjunto e quais pertencem exclusivamente ao painel elétrico. O sistema calcula automaticamente quantos kits podem ser montados agora com base na peça gargalo do estoque. Quando confirmamos a montagem de um kit, a API desconta todas as peças automaticamente do almoxarifado e soma o kit pronto.*  
+  > *Também contamos com o **Simulador de Produção Multi-Kits** para planejar ordens de produção sem alterar o estoque físico, o módulo de **Softwares e CLPs** para rastrear versões de firmware instaladas em cada cliente, e a tela de **Gestão de Usuários**, restrita ao perfil Administrador. Com isso concluímos a apresentação do código e do funcionamento geral da solução!"*
 
 ---
 
-### 🔹 Bloco 2: Login, IHC/UX e Dashboard Executivo (01:00 – 02:00)
-* **[Na Tela]:** Mude para a aba do **ShelfApp**, alterne o botão de **Modo Claro / Modo Escuro**, faça login e mostre o **Dashboard Principal (`/`)**.
+## 🎥 VÍDEO 2 — Apresentação da Solução Atualizada Pós-Testes (Situação-Problema 3)
+* **Onde colar o link:** Página 6 do Word (`Link para o vídeo` na seção `Vídeo da Solução atualizada`)
+* **Duração Alvo:** **2 min 45 seg a 4 min 00 seg** (o requisito é "até 5 minutos")
+
+### 🔹 00:00 – 00:40 | Contextualização dos 5 Testes e Ciclo Kaizen
+* **[Na Tela]:** Mostre rapidamente o histórico de commits no GitHub (`https://github.com/KonoDoardoDa/ShelfApp/commits/main`) e a tela inicial do ShelfApp.
 * **[O que falar]:**
-  > *"Aplicando os princípios de Interface Humano-Computador (IHC) e UX, a interface conta com suporte nativo a Modo Claro e Modo Escuro e feedback visual imediato.*  
-  > *Ao autenticar via token JWT, chegamos ao **Dashboard Executivo**. No topo temos os 4 KPIs em tempo real: Total de Itens, Baixo Estoque, Estoque Zerado e Fornecedores. Logo abaixo temos o **Monitor de Reposição Crítica**, que destaca apenas as peças que precisam de atenção imediata, permitindo filtrar itens zerados ou com baixo estoque e ir direto para a reposição."*
+  > *"Olá! Neste vídeo da Situação-Problema 3, vou apresentar as atualizações e melhorias implementadas no **ShelfApp ERP** após a sessão de testes realizada com 5 colegas avaliadores, seguindo o ciclo de melhoria contínua Kaizen."*
 
----
-
-### 🔹 Bloco 3: Almoxarifado Unificado e Melhorias Pós-Testes dos Colegas (02:00 – 03:15)
-* **[Na Tela]:** Clique em **Estoque & Peças (`/items/estoque`)**. Mostre a ordenação clicando no cabeçalho de uma coluna, abra o modal de **Movimentar Estoque**, o modal de **Importar XML** e o **Histórico de Auditoria**.
+### 🔹 00:40 – 01:30 | Melhoria do Teste 1 (Nota Fiscal e Importação de XML NF-e) e Teste 2 (Ordenação nas Tabelas)
+* **[Na Tela]:** Vá em **Estoque & Peças (`/items/estoque`)**.
+  1. Clique no botão **Movimentar** de uma peça para mostrar o campo **Nota Fiscal** e depois clique no botão **Importar XML (NF-e)** no topo da tela para mostrar o modal de importação em lote.
+  2. Em seguida, clique nos cabeçalhos **ID**, **Item / Peça** e **Saldo Atual** para mostrar a ordenação crescente/decrescente.
 * **[O que falar]:**
-  > *"Na Situação-Problema 3, submetemos o sistema à avaliação de 5 colegas e implementamos melhorias importantes no ciclo Kaizen:*  
-  > *1. Primeiro, adicionamos **ordenação dinâmica em todas as colunas** das tabelas.*  
-  > *2. Segundo, criamos o botão de **Inativar/Reativar** registros para preservar a integridade referencial sem perder o histórico.*  
-  > *3. Terceiro, a partir do feedback sobre entrada de mercadorias, adicionamos o vínculo de **Nota Fiscal** nas movimentações e criamos a **Importação Automatizada de XML de NF-e**, que lê o arquivo fiscal, cadastra peças novas e soma o saldo em lote dentro de uma transação SQL segura.*  
-  > *Além disso, em **Histórico de Auditoria**, temos a rastreabilidade completa de quem movimentou cada peça, data, hora, saldo anterior, saldo posterior e justificativa."*
+  > *"No **Teste 1**, foi apontada a ausência de um campo próprio para Nota Fiscal e a demora para lançar notas fiscais com muitos itens manualmente. Como correção, adicionamos o campo dedicado de **Nota Fiscal** no modal de movimentação e no histórico de auditoria, e criamos o módulo de **Importação de XML de NF-e**, que lê o arquivo fiscal, pré-visualiza os produtos e dá entrada no estoque em lote dentro de uma transação única.*  
+  > *Já no **Teste 2**, foi identificada a falta de ordenação nas tabelas com muitos itens. Implementamos o componente `SortableTh` e o hook `useTableSort`, permitindo clicar em qualquer coluna — como ID, Nome, Saldo ou Capacidade — para ordenar em ordem crescente ou decrescente."*
 
----
-
-### 🔹 Bloco 4: Manufatura de Kits e Simulador de Produção Multi-Kits (03:15 – 04:30)
-* **[Na Tela]:** Acesse **Kits & Montagens (`/items/kits`)**. Abra a **Composição (BOM)** de um kit para mostrar as peças e a flag `Painel`. Depois abra o **Simulador de Montagem**, adicione 2 ou 3 kits na fila, alterne os filtros (`Apenas Painéis` / `Todos`) e clique em **Exportar CSV**.
+### 🔹 01:30 – 02:20 | Melhoria do Teste 3 (CSV com UTF-8 BOM e Agrupamento por Fornecedor) e Teste 4 (Inativação Lógica)
+* **[Na Tela]:**
+  1. Vá em **Kits (`/items/kits`)**, abra o **Simulador de Montagem**, adicione um kit e clique em **Exportar CSV**.
+  2. Feche o modal e aponte para o botão de **Inativar/Ativar** e o filtro **Ativos / Inativos** na listagem de Kits ou Peças.
 * **[O que falar]:**
-  > *"Aqui no módulo de **Kits**, o sistema calcula automaticamente a **Capacidade de Montagem** em tempo real com base na peça mais escassa do estoque. Quando o operador clica em **Montar Kit**, o back-end executa uma transação atômica: dá baixa automática em todas as peças da receita e incrementa o saldo do kit pronto. E se precisar estornar, a função **Desmontar Kit** devolve 100% das peças ao almoxarifado.*  
-  > *Para o setor de compras e PCP, criamos o **Simulador de Produção Multi-Kits**: podemos simular a fabricação simultânea de vários modelos de kits, filtrar apenas componentes de painel elétrico ou peças gerais, visualizar exatamente quais peças faltam comprar e exportar a planilha em CSV com codificação UTF-8 BOM corrigida após os testes dos colegas."*
+  > *"No **Teste 3**, ao exportar a planilha CSV do Simulador de Produção para o Excel, os caracteres acentuados ficavam desconfigurados. Corrigimos a rotina de exportação adicionando o marcador **UTF-8 BOM (`\uFEFF`)**, separador por ponto e vírgula e o agrupamento dos itens por fornecedor para facilitar a cotação de compras.*  
+  > *No **Teste 4**, como o sistema bloqueia a exclusão física de itens que já possuem histórico de auditoria, implementamos a **inativação lógica** com o botão de Ativar e Inativar tanto em Fornecedores quanto em Peças e Kits, permitindo ocultar itens obsoletos sem perder o histórico passado."*
 
----
-
-### 🔹 Bloco 5: Softwares/CLPs, Controle de Usuários e Encerramento (04:30 – 05:00)
-* **[Na Tela]:** Passe brevemente por **Softwares & CLPs (`/softwares`)** e **Usuários (`/users`)**.
+### 🔹 02:20 – 03:00 | Melhoria do Teste 5 (Compatibilidade MySQL Linux na Nuvem e Swagger)
+* **[Na Tela]:** Mostre a aba do Swagger em produção (`https://shelfapi.onrender.com/swagger`) e o commit de padronização dos repositórios no GitHub (`ShelfAPI`).
 * **[O que falar]:**
-  > *"Por fim, temos o módulo de **Softwares e CLPs**, que registra qual versão de firmware foi instalada em cada cliente e máquina em campo, e o módulo de **Usuários**, restrito ao perfil Administrador.*  
-  > *Durante os testes na nuvem, também identificamos e corrigimos a sensibilidade a maiúsculas e minúsculas do MySQL no ambiente Linux, deixando toda a solução 100% estável e validada. Muito obrigado!"*
+  > *"Por fim, no **Teste 5**, realizado diretamente no ambiente em nuvem, identificamos que o MySQL em servidor Linux diferenciava maiúsculas e minúsculas nos nomes das tabelas, gerando erro 500 no login, além de o Swagger estar desabilitado em produção. Padronizamos todas as queries SQL dos 7 repositórios da API para nomes de tabelas em letras minúsculas e habilitamos o Swagger em produção no `Program.cs`. Todas as correções estão rastreadas em commits no GitHub e 100% funcionais. Muito obrigado!"*
