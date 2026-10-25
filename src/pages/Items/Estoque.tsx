@@ -515,7 +515,6 @@ export default function Estoque() {
         </div>
 
         <div className="page-header-actions">
-          {false && (
           <button
             className="btn btn-secondary"
             onClick={() => setIsImportXmlModalOpen(true)}
@@ -525,7 +524,6 @@ export default function Estoque() {
             <Upload size={16} color="var(--accent, #3b82f6)" />
             Importar XML / NF-e
           </button>
-          )}
           <button
             className="btn btn-secondary"
             onClick={() => handleOpenAuditModal()}
@@ -1048,7 +1046,7 @@ export default function Estoque() {
           </div>
 
           {/* Nota Fiscal (Opcional - Exclusivo para Entradas de Mercadoria) */}
-          {false && tipoMovimento === "Entrada" && (
+          {tipoMovimento === "Entrada" && (
             <div className="form-group">
               <label
                 className="form-label"
@@ -1223,7 +1221,6 @@ export default function Estoque() {
                     >
                       Fornecedor
                     </SortableTh>
-                    {false && (
                     <SortableTh
                       sortKey="notaFiscal"
                       currentSortKey={auditSortKey}
@@ -1233,7 +1230,6 @@ export default function Estoque() {
                     >
                       NF / Doc
                     </SortableTh>
-                    )}
                     <SortableTh
                       sortKey="tipo"
                       currentSortKey={auditSortKey}
@@ -1308,7 +1304,6 @@ export default function Estoque() {
                               "—"}
                           </span>
                         </td>
-                        {false && (
                         <td>
                           {log.notaFiscal ? (
                             <span
@@ -1332,7 +1327,6 @@ export default function Estoque() {
                             <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>—</span>
                           )}
                         </td>
-                        )}
                         <td>
                           {isEntrada ? (
                             <span className="badge badge-green" style={{ fontWeight: 600 }}>
