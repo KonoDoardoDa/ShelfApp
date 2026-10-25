@@ -16,7 +16,7 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   children,
   maxWidth = "550px",
-  closeOnBackdrop = true,
+  closeOnBackdrop = false,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
