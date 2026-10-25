@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# PIT II & Documentos de Entrega Acadêmica
+PIT_II_Entrega*
+Documentacao_Pratica*
+docs/
+.~lock.*
