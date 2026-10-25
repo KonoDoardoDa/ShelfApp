@@ -526,7 +526,7 @@ export default function Softwares() {
       <Modal
         isOpen={isFormModalOpen}
         onClose={() => !submitting && setIsFormModalOpen(false)}
-        closeOnBackdrop={false}
+        closeOnBackdrop={true}
         title={
           editingSoftware
             ? "Editar Implantação de Software"
